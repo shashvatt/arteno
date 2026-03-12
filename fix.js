@@ -1,0 +1,1 @@
+var fs=require("fs"); var content=fs.readFileSync("app/api/payments/create-order/route.ts","utf8"); content=content.replace(/receipt:.*,/, "receipt: \"r\"+Date.now()+\"\","); fs.writeFileSync("app/api/payments/create-order/route.ts",content); console.log("Fixed!");
