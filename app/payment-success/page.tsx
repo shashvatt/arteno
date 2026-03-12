@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function PaymentSuccessPage() {
+function PaymentSuccessContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const plan = searchParams.get("plan") ?? "pro";
@@ -32,7 +32,6 @@ export default function PaymentSuccessPage() {
         width: "100%",
         animation: "fadeup 0.4s cubic-bezier(0.16,1,0.3,1) both",
       }}>
-        {/* Success icon */}
         <div style={{
           width: 56, height: 56, borderRadius: "50%",
           background: "rgba(22,163,74,0.1)",
@@ -78,5 +77,13 @@ export default function PaymentSuccessPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <PaymentSuccessContent />
+    </Suspense>
   );
 }
