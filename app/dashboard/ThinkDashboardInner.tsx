@@ -3,12 +3,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
-import IdeaInput from "@/components/IdeaInput";
+import MobileSwitcher from "@/components/MobileSwitcher";
 import Link from "next/link";
 
 type Tab = "blueprint" | "roadmap" | "prompts" | "feasibility";
-
-// ── Hooks ────────────────────────────────────────────────
 
 function useWindowWidth() {
     const [width, setWidth] = useState(0);
@@ -46,8 +44,6 @@ function useTypewriter(text: string, speed = 60, enabled = true) {
     return { displayed, done };
 }
 
-// ── Small UI primitives ──────────────────────────────────
-
 function Cursor({ visible }: { visible: boolean }) {
     const [blink, setBlink] = useState(true);
     useEffect(() => {
@@ -56,378 +52,266 @@ function Cursor({ visible }: { visible: boolean }) {
         return () => clearInterval(t);
     }, [visible]);
     if (!visible) return null;
-    return (
-        <span style={{
-            display: "inline-block", width: 2, height: "1em",
-            background: "var(--text)", marginLeft: 2, verticalAlign: "text-bottom",
-            opacity: blink ? 1 : 0, transition: "opacity 0.1s",
-        }} />
-    );
+    return <span style={{ display: "inline-block", width: 2, height: "1em", background: "var(--text)", marginLeft: 2, verticalAlign: "text-bottom", opacity: blink ? 1 : 0, transition: "opacity 0.1s" }} />;
 }
 
 function FadeIn({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) {
     const [visible, setVisible] = useState(false);
     useEffect(() => { const t = setTimeout(() => setVisible(true), delay); return () => clearTimeout(t); }, [delay]);
-    return (
-        <div style={{
-            opacity: visible ? 1 : 0,
-            transform: visible ? "translateY(0)" : "translateY(8px)",
-            transition: "opacity 0.4s ease, transform 0.4s ease",
-        }}>{children}</div>
-    );
+    return <div style={{ opacity: visible ? 1 : 0, transform: visible ? "translateY(0)" : "translateY(6px)", transition: "opacity 0.35s ease, transform 0.35s ease" }}>{children}</div>;
 }
 
 function CopyButton({ text }: { text: string }) {
     const [copied, setCopied] = useState(false);
     return (
-        <button
-            onClick={async () => { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-            style={{
-                display: "flex", alignItems: "center", gap: 4, fontSize: 11,
-                color: copied ? "#22c55e" : "var(--text-4)", background: "transparent",
-                border: "1px solid var(--border)", borderRadius: 6, padding: "3px 8px",
-                cursor: "pointer", transition: "all 0.15s", flexShrink: 0,
-            }}>
-            {copied ? "✓ Copied!" : "Copy"}
+        <button onClick={async () => { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+            style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: copied ? "#22c55e" : "var(--text-4)", background: copied ? "rgba(34,197,94,0.08)" : "var(--surface)", border: `1px solid ${copied ? "rgba(34,197,94,0.25)" : "var(--border)"}`, borderRadius: 6, padding: "4px 10px", cursor: "pointer", transition: "all 0.15s", flexShrink: 0, fontFamily: "var(--font)", fontWeight: 500 }}>
+            {copied ? "✓ Copied" : "Copy"}
         </button>
     );
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+function Label({ children, color }: { children: React.ReactNode; color?: string }) {
     return (
-        <div style={{
-            fontSize: 10.5, fontWeight: 700, textTransform: "uppercase",
-            letterSpacing: "0.1em", color: "var(--text-4)", marginBottom: 8,
-        }}>{children}</div>
+        <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: color ?? "var(--text-4)", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+            <span style={{ width: 16, height: 1, background: color ?? "var(--border)", display: "inline-block", borderRadius: 1 }} />
+            {children}
+        </div>
     );
 }
 
 function GeneratingIndicator({ activeTab }: { activeTab: Tab }) {
-    const labels: Record<Tab, string> = {
-        blueprint: "Building your product blueprint",
-        roadmap: "Planning your execution roadmap",
-        prompts: "Crafting AI prompt packs",
-        feasibility: "Analysing feasibility",
-    };
+    const labels: Record<Tab, string> = { blueprint: "Building blueprint", roadmap: "Planning roadmap", prompts: "Crafting prompt packs", feasibility: "Analysing feasibility" };
     const [dots, setDots] = useState("");
-    useEffect(() => {
-        const t = setInterval(() => setDots(d => d.length >= 3 ? "" : d + "."), 400);
-        return () => clearInterval(t);
-    }, []);
+    useEffect(() => { const t = setInterval(() => setDots(d => d.length >= 3 ? "" : d + "."), 400); return () => clearInterval(t); }, []);
     return (
-        <div style={{
-            display: "flex", alignItems: "center", gap: 10, padding: "14px 18px",
-            border: "1px solid var(--border)", borderRadius: "var(--r)",
-            background: "var(--surface)", marginBottom: 16,
-        }}>
-            <div style={{
-                width: 7, height: 7, borderRadius: "50%", background: "var(--primary)",
-                animation: "think-pulse 1.2s ease-in-out infinite",
-            }} />
-            <span style={{ fontSize: 13.5, color: "var(--text-3)", fontWeight: 500 }}>
-                {labels[activeTab]}{dots}
-            </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 16px", border: "1px solid var(--border)", borderRadius: 10, background: "var(--surface)", marginBottom: 16 }}>
+            <div style={{ width: 6, height: 6, borderRadius: "50%", background: "#6366f1", animation: "think-pulse 1.2s ease-in-out infinite", boxShadow: "0 0 6px rgba(99,102,241,0.5)" }} />
+            <span style={{ fontSize: 13, color: "var(--text-3)", fontWeight: 500 }}>{labels[activeTab]}{dots}</span>
         </div>
     );
 }
 
 function ErrorBanner({ message, onDismiss }: { message: string; onDismiss: () => void }) {
     return (
-        <div style={{
-            padding: "12px 16px", background: "rgba(220,38,38,0.06)",
-            border: "1px solid rgba(220,38,38,0.2)", borderRadius: "var(--r)",
-            marginBottom: 16, display: "flex", alignItems: "center",
-            justifyContent: "space-between", gap: 12,
-        }}>
+        <div style={{ padding: "12px 16px", background: "rgba(220,38,38,0.05)", border: "1px solid rgba(220,38,38,0.15)", borderRadius: 10, marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
             <span style={{ fontSize: 13, color: "#dc2626" }}>⚠ {message}</span>
-            <button onClick={onDismiss} style={{
-                background: "none", border: "none", cursor: "pointer",
-                color: "#dc2626", fontSize: 16, lineHeight: 1, padding: 0,
-            }}>×</button>
+            <button onClick={onDismiss} style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", fontSize: 16, lineHeight: 1, padding: 0 }}>×</button>
         </div>
     );
 }
 
-// ── Sidebar panel shown when results are visible ─────────
-
-function InsightPanel({ data }: { data: any }) {
-    if (!data) return null;
-    const score = data.feasibility?.score;
-    const revenueModel = data.blueprint?.revenueModel;
-    const marketSize = data.blueprint?.marketSize;
-    const timeToMarket = data.feasibility?.timeToMarket;
-    const topCompetitors = data.feasibility?.topCompetitors;
-
-    return (
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {revenueModel && (
-                <div style={{
-                    background: "var(--primary)", borderRadius: "var(--r-lg)", padding: "20px 22px",
-                }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-                        <div style={{
-                            width: 30, height: 30, borderRadius: 8,
-                            background: "rgba(255,255,255,0.15)",
-                            display: "flex", alignItems: "center", justifyContent: "center",
-                        }}>
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <line x1="12" y1="1" x2="12" y2="23" />
-                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                            </svg>
-                        </div>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: "#fff", letterSpacing: "-0.2px" }}>Revenue Strategy</span>
-                    </div>
-                    <p style={{ fontSize: 12.5, color: "rgba(255,255,255,0.85)", lineHeight: 1.65 }}>{revenueModel}</p>
-                    {marketSize && (
-                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(255,255,255,0.15)" }}>
-                            <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(255,255,255,0.45)", marginBottom: 4 }}>Market Size</div>
-                            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", lineHeight: 1.5 }}>{marketSize}</p>
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {score !== undefined && (
-                <div style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "var(--r-lg)", padding: "18px 20px" }}>
-                    <SectionLabel>Feasibility Score</SectionLabel>
-                    <div style={{ display: "flex", alignItems: "flex-end", gap: 6, marginBottom: 10 }}>
-                        <span style={{
-                            fontSize: 44, fontWeight: 700, letterSpacing: "-2px", lineHeight: 1,
-                            color: score >= 70 ? "#16a34a" : score >= 50 ? "#f59e0b" : "#dc2626",
-                        }}>{score}</span>
-                        <span style={{ fontSize: 13, color: "var(--text-4)", marginBottom: 6 }}>/100</span>
-                    </div>
-                    <div style={{ height: 6, background: "var(--border)", borderRadius: 10, overflow: "hidden", marginBottom: 8 }}>
-                        <div style={{
-                            width: `${score}%`, height: "100%", borderRadius: 10, transition: "width 1s ease",
-                            background: score >= 70 ? "#16a34a" : score >= 50 ? "#f59e0b" : "#dc2626",
-                        }} />
-                    </div>
-                    <div style={{ fontSize: 11.5, color: "var(--text-4)", textTransform: "capitalize" }}>
-                        {data.feasibility?.confidence} confidence
-                    </div>
-                    {timeToMarket && (
-                        <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)", fontSize: 12, color: "var(--text-3)" }}>
-                            <span style={{ fontWeight: 600, color: "var(--text-2)" }}>Time to market: </span>{timeToMarket}
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {data.blueprint?.techStack?.length > 0 && (
-                <div style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "var(--r-lg)", padding: "18px 20px" }}>
-                    <SectionLabel>Tech Stack</SectionLabel>
-                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                        {data.blueprint.techStack.map((t: any, i: number) => {
-                            const label = typeof t === "string" ? t : t?.name ?? JSON.stringify(t);
-                            return (
-                                <span key={i} style={{
-                                    fontSize: 11.5, padding: "3px 10px",
-                                    border: "1px solid var(--primary-border)", borderRadius: 20,
-                                    color: "var(--primary)", background: "var(--primary-soft)",
-                                }}>{label}</span>
-                            );
-                        })}
-                    </div>
-                </div>
-            )}
-
-            {topCompetitors?.length > 0 && (
-                <div style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "var(--r-lg)", padding: "18px 20px" }}>
-                    <SectionLabel>Top Competitors</SectionLabel>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                        {topCompetitors.map((c: string, i: number) => (
-                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--text-2)" }}>
-                                <span style={{
-                                    width: 18, height: 18, borderRadius: "50%",
-                                    background: "var(--surface-2)", border: "1px solid var(--border)",
-                                    display: "flex", alignItems: "center", justifyContent: "center",
-                                    fontSize: 10, fontWeight: 700, color: "var(--text-4)", flexShrink: 0,
-                                }}>{i + 1}</span>
-                                {c}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            <div style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "var(--r-lg)", padding: "18px 20px" }}>
-                <SectionLabel>Export Options</SectionLabel>
-                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    {[{ label: "Download PDF", icon: "↓" }, { label: "Copy Blueprint", icon: "⎘" }, { label: "Share Link", icon: "↗" }].map((opt) => (
-                        <button key={opt.label} style={{
-                            display: "flex", alignItems: "center", justifyContent: "space-between",
-                            padding: "9px 12px", background: "var(--surface)", border: "1px solid var(--border)",
-                            borderRadius: "var(--r)", fontSize: 13, color: "var(--text-2)", cursor: "pointer",
-                            fontFamily: "var(--font)", fontWeight: 500, transition: "border-color 0.12s, background 0.12s",
-                        }}
-                            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--primary-border)"; (e.currentTarget as HTMLElement).style.background = "var(--primary-soft)"; }}
-                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.background = "var(--surface)"; }}>
-                            <span>{opt.label}</span>
-                            <span style={{ color: "var(--text-4)" }}>{opt.icon}</span>
-                        </button>
-                    ))}
-                </div>
-            </div>
-        </div>
-    );
-}
-
-// ── Result tab content components ────────────────────────
-
-function StreamingBlueprint({ data, isStreaming }: { data: any; isStreaming: boolean }) {
+// ════════════════════════════════════════════════════════
+// BLUEPRINT
+// ════════════════════════════════════════════════════════
+function StreamingBlueprint({ data, isStreaming, isMobile }: { data: any; isStreaming: boolean; isMobile?: boolean }) {
     const { displayed: tagline, done: taglineDone } = useTypewriter(data?.tagline ?? "", 60, isStreaming);
     const { displayed: problemSolved, done: problemDone } = useTypewriter(data?.problemSolved ?? "", 50, isStreaming && taglineDone);
     const { displayed: coreValue, done: coreDone } = useTypewriter(data?.coreValueProposition ?? "", 45, isStreaming && problemDone);
     const { displayed: competitive, done: competitiveDone } = useTypewriter(data?.competitiveEdge ?? "", 40, isStreaming && coreDone);
+    const features = (data?.coreFeatures ?? []).map((f: any) => typeof f === "string" ? { name: f, description: "", priority: "Medium" } : f);
+    const techStack = (data?.techStack ?? []).map((t: any) => typeof t === "string" ? t : t?.name ?? JSON.stringify(t));
 
-    const features = (data?.coreFeatures ?? []).map((f: any) =>
-        typeof f === "string" ? { name: f, description: "", priority: "Medium" } : f
-    );
-    const techStack = (data?.techStack ?? []).map((t: any) =>
-        typeof t === "string" ? t : t?.name ?? JSON.stringify(t)
-    );
+    const priorityConfig: Record<string, { color: string; bg: string; border: string; dot: string }> = {
+        high: { color: "#f87171", bg: "rgba(248,113,113,0.07)", border: "rgba(248,113,113,0.2)", dot: "#ef4444" },
+        medium: { color: "#fbbf24", bg: "rgba(251,191,36,0.07)", border: "rgba(251,191,36,0.2)", dot: "#f59e0b" },
+        low: { color: "var(--text-4)", bg: "transparent", border: "var(--border)", dot: "var(--border)" },
+    };
 
     return (
-        <div style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "var(--r-lg)", padding: 24 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {/* Hero header */}
             <FadeIn>
-                <h2 style={{ fontSize: 22, fontWeight: 700, letterSpacing: "-0.5px", marginBottom: 6 }}>{data?.productName}</h2>
-                <p style={{ fontSize: 14, color: "var(--text-3)", marginBottom: 24, lineHeight: 1.6 }}>
-                    {tagline}<Cursor visible={isStreaming && !taglineDone} />
-                </p>
-            </FadeIn>
-
-            {(taglineDone || !isStreaming) && (
-                <FadeIn delay={100}>
-                    <div style={{ marginBottom: 20 }}>
-                        <SectionLabel>Problem Solved</SectionLabel>
-                        <p style={{ fontSize: 13.5, color: "var(--text-2)", lineHeight: 1.75 }}>
-                            {problemSolved}<Cursor visible={isStreaming && taglineDone && !problemDone} />
-                        </p>
-                    </div>
-                </FadeIn>
-            )}
-            {(problemDone || !isStreaming) && (
-                <FadeIn delay={100}>
-                    <div style={{ marginBottom: 20 }}>
-                        <SectionLabel>Core Value Proposition</SectionLabel>
-                        <p style={{ fontSize: 13.5, color: "var(--text-2)", lineHeight: 1.75 }}>
-                            {coreValue}<Cursor visible={isStreaming && problemDone && !coreDone} />
-                        </p>
-                    </div>
-                </FadeIn>
-            )}
-            {(coreDone || !isStreaming) && (
-                <FadeIn delay={100}>
-                    {data?.targetAudience?.length > 0 && (
-                        <div style={{ marginBottom: 20 }}>
-                            <SectionLabel>Target Audience</SectionLabel>
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                                {data.targetAudience.map((a: any, i: number) => {
-                                    const label = typeof a === "string" ? a : a?.name ?? JSON.stringify(a);
-                                    return (
-                                        <FadeIn key={i} delay={i * 80}>
-                                            <span style={{ fontSize: 12.5, padding: "4px 12px", border: "1px solid var(--border)", borderRadius: 20, color: "var(--text-2)", background: "var(--surface)" }}>{label}</span>
-                                        </FadeIn>
-                                    );
+                <div style={{ padding: isMobile ? "20px 18px 18px" : "32px 32px 28px", borderRadius: "14px 14px 0 0", background: "var(--bg)", border: "1px solid var(--border)", borderBottom: "none", position: "relative", overflow: "hidden" }}>
+                    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, #6366f1, #8b5cf6, #a78bfa, transparent)" }} />
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "#6366f1", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#6366f1", display: "inline-block", boxShadow: "0 0 6px rgba(99,102,241,0.7)" }} />
+                                Product Blueprint
+                            </div>
+                            <h1 style={{ fontSize: isMobile ? 22 : 30, fontWeight: 700, letterSpacing: "-1px", color: "var(--text)", marginBottom: 8, lineHeight: 1.15 }}>
+                                {data?.productName}
+                            </h1>
+                            <p style={{ fontSize: isMobile ? 13 : 15, color: "var(--text-3)", lineHeight: 1.65, margin: 0 }}>
+                                {tagline}<Cursor visible={isStreaming && !taglineDone} />
+                            </p>
+                        </div>
+                        {/* Hide audience tags on mobile to prevent layout overflow */}
+                        {!isMobile && data?.targetAudience?.length > 0 && (
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 5, maxWidth: 200, justifyContent: "flex-end" }}>
+                                {data.targetAudience.slice(0, 3).map((a: any, i: number) => {
+                                    const label = typeof a === "string" ? a : a?.name ?? "";
+                                    return <span key={i} style={{ fontSize: 11, padding: "3px 10px", border: "1px solid var(--border)", borderRadius: 20, color: "var(--text-4)", background: "var(--surface)", whiteSpace: "nowrap" }}>{label}</span>;
                                 })}
                             </div>
+                        )}
+                    </div>
+                    {/* Show audience tags below title on mobile */}
+                    {isMobile && data?.targetAudience?.length > 0 && (
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 12 }}>
+                            {data.targetAudience.slice(0, 3).map((a: any, i: number) => {
+                                const label = typeof a === "string" ? a : a?.name ?? "";
+                                return <span key={i} style={{ fontSize: 11, padding: "3px 10px", border: "1px solid var(--border)", borderRadius: 20, color: "var(--text-4)", background: "var(--surface)", whiteSpace: "nowrap" }}>{label}</span>;
+                            })}
                         </div>
                     )}
-                    {features.length > 0 && (
-                        <div style={{ marginBottom: 20 }}>
-                            <SectionLabel>Core Features</SectionLabel>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                                {features.map((f: any, i: number) => (
-                                    <FadeIn key={i} delay={i * 100}>
-                                        <div style={{
-                                            padding: "12px 16px", border: "1px solid var(--border)",
-                                            borderRadius: "var(--r)", background: "var(--surface)",
-                                            display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12,
-                                        }}>
-                                            <div>
-                                                <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 4 }}>{f.name}</div>
-                                                {f.description && <div style={{ fontSize: 12.5, color: "var(--text-3)", lineHeight: 1.6 }}>{f.description}</div>}
+                </div>
+            </FadeIn>
+
+            {/* Problem + Value — stack on mobile */}
+            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 2 }}>
+                {(taglineDone || !isStreaming) && (
+                    <FadeIn delay={80}>
+                        <div style={{ padding: isMobile ? "16px 18px" : "24px 26px", background: "var(--bg)", border: "1px solid var(--border)", borderTop: "none", borderRight: isMobile ? "1px solid var(--border)" : "none", minHeight: isMobile ? "auto" : 140 }}>
+                            <Label>Problem Solved</Label>
+                            <p style={{ fontSize: 13.5, color: "var(--text-2)", lineHeight: 1.75, margin: 0 }}>
+                                {problemSolved}<Cursor visible={isStreaming && taglineDone && !problemDone} />
+                            </p>
+                        </div>
+                    </FadeIn>
+                )}
+                {(problemDone || !isStreaming) && (
+                    <FadeIn delay={140}>
+                        <div style={{ padding: isMobile ? "16px 18px" : "24px 26px", background: "var(--bg)", border: "1px solid var(--border)", borderTop: "none", borderLeft: isMobile ? "1px solid var(--border)" : "none", minHeight: isMobile ? "auto" : 140 }}>
+                            <Label>Value Proposition</Label>
+                            <p style={{ fontSize: 13.5, color: "var(--text-2)", lineHeight: 1.75, margin: 0 }}>
+                                {coreValue}<Cursor visible={isStreaming && problemDone && !coreDone} />
+                            </p>
+                        </div>
+                    </FadeIn>
+                )}
+            </div>
+
+            {/* Core Features */}
+            {(coreDone || !isStreaming) && features.length > 0 && (
+                <FadeIn delay={180}>
+                    <div style={{ padding: isMobile ? "16px 18px" : "24px 28px", background: "var(--bg)", border: "1px solid var(--border)", borderTop: "none" }}>
+                        <Label>Core Features</Label>
+                        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(240px, 1fr))", gap: 10 }}>
+                            {features.map((f: any, i: number) => {
+                                const p = (f.priority ?? "medium").toLowerCase();
+                                const pc = priorityConfig[p] ?? priorityConfig.low;
+                                return (
+                                    <FadeIn key={i} delay={i * 60}>
+                                        <div style={{ padding: "14px 16px", border: `1px solid ${pc.border}`, borderRadius: 10, background: pc.bg, display: "flex", flexDirection: "column", gap: 6, boxSizing: "border-box" }}>
+                                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                                                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", lineHeight: 1.3 }}>{f.name}</span>
+                                                <span style={{ width: 6, height: 6, borderRadius: "50%", background: pc.dot, flexShrink: 0 }} />
                                             </div>
-                                            {f.priority && (
-                                                <span style={{
-                                                    fontSize: 10.5, padding: "2px 8px", borderRadius: 20, whiteSpace: "nowrap" as const, flexShrink: 0,
-                                                    border: `1px solid ${f.priority === "High" || f.priority === "high" ? "rgba(220,38,38,0.25)" : f.priority === "Medium" || f.priority === "medium" ? "rgba(245,158,11,0.25)" : "var(--border)"}`,
-                                                    color: f.priority === "High" || f.priority === "high" ? "#dc2626" : f.priority === "Medium" || f.priority === "medium" ? "#d97706" : "var(--text-4)",
-                                                    background: f.priority === "High" || f.priority === "high" ? "rgba(220,38,38,0.06)" : f.priority === "Medium" || f.priority === "medium" ? "rgba(245,158,11,0.06)" : "transparent",
-                                                }}>{f.priority}</span>
-                                            )}
+                                            {f.description && <p style={{ fontSize: 12, color: "var(--text-3)", lineHeight: 1.6, margin: 0 }}>{f.description}</p>}
                                         </div>
                                     </FadeIn>
-                                ))}
-                            </div>
+                                );
+                            })}
                         </div>
-                    )}
-                    {techStack.length > 0 && (
-                        <div style={{ marginBottom: 20 }}>
-                            <SectionLabel>Tech Stack</SectionLabel>
-                            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                                {techStack.map((t: string, i: number) => (
-                                    <FadeIn key={i} delay={i * 60}>
-                                        <span style={{ fontSize: 12.5, padding: "4px 12px", border: "1px solid var(--primary-border)", borderRadius: 20, color: "var(--primary)", background: "var(--primary-soft)" }}>{t}</span>
-                                    </FadeIn>
-                                ))}
-                            </div>
+                        <div style={{ display: "flex", gap: 14, marginTop: 14, flexWrap: "wrap" }}>
+                            {[["high", "#ef4444"], ["medium", "#f59e0b"], ["low", "var(--border)"]].map(([label, color]) => (
+                                <div key={label} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: "var(--text-4)" }}>
+                                    <span style={{ width: 5, height: 5, borderRadius: "50%", background: color, display: "inline-block" }} />
+                                    {label} priority
+                                </div>
+                            ))}
                         </div>
-                    )}
-                    {data?.competitiveEdge && (
-                        <FadeIn delay={100}>
-                            <div style={{ marginBottom: 20 }}>
-                                <SectionLabel>Competitive Edge</SectionLabel>
-                                <p style={{ fontSize: 13.5, color: "var(--text-2)", lineHeight: 1.75 }}>
-                                    {competitive}<Cursor visible={isStreaming && coreDone && !competitiveDone} />
-                                </p>
-                            </div>
-                        </FadeIn>
-                    )}
+                    </div>
+                </FadeIn>
+            )}
+
+            {/* Tech Stack */}
+            {(coreDone || !isStreaming) && techStack.length > 0 && (
+                <FadeIn delay={220}>
+                    <div style={{ padding: isMobile ? "16px 18px" : "22px 28px", background: "var(--bg)", border: "1px solid var(--border)", borderTop: "none" }}>
+                        <Label>Tech Stack</Label>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                            {techStack.map((t: string, i: number) => (
+                                <FadeIn key={i} delay={i * 40}>
+                                    <span style={{ fontSize: 12, padding: "5px 13px", border: "1px solid rgba(99,102,241,0.25)", borderRadius: 8, color: "#a5b4fc", background: "rgba(99,102,241,0.07)", fontWeight: 500, letterSpacing: "0.01em" }}>{t}</span>
+                                </FadeIn>
+                            ))}
+                        </div>
+                    </div>
+                </FadeIn>
+            )}
+
+            {/* Competitive Edge */}
+            {(coreDone || !isStreaming) && data?.competitiveEdge && (
+                <FadeIn delay={260}>
+                    <div style={{ padding: isMobile ? "16px 18px" : "22px 28px", background: "var(--bg)", border: "1px solid var(--border)", borderTop: "none", borderRadius: "0 0 14px 14px", position: "relative", overflow: "hidden" }}>
+                        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg, rgba(99,102,241,0.3), transparent)" }} />
+                        <Label color="#6366f1">Competitive Edge</Label>
+                        <p style={{ fontSize: 13.5, color: "var(--text-2)", lineHeight: 1.75, margin: 0 }}>
+                            {competitive}<Cursor visible={isStreaming && coreDone && !competitiveDone} />
+                        </p>
+                    </div>
                 </FadeIn>
             )}
         </div>
     );
 }
 
-function StreamingRoadmap({ data, isStreaming }: { data: any; isStreaming: boolean }) {
+// ════════════════════════════════════════════════════════
+// ROADMAP
+// ════════════════════════════════════════════════════════
+function StreamingRoadmap({ data, isStreaming, isMobile }: { data: any; isStreaming: boolean; isMobile?: boolean }) {
     const [expandedPhase, setExpandedPhase] = useState<number>(1);
+    const phaseColors = ["#6366f1", "#8b5cf6", "#a855f7", "#c084fc"];
+
     return (
-        <div style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "var(--r-lg)", padding: 24 }}>
-            <FadeIn><h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, letterSpacing: "-0.3px" }}>Execution Roadmap</h2></FadeIn>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+            <FadeIn>
+                <div style={{ padding: isMobile ? "20px 18px 16px" : "28px 30px 24px", background: "var(--bg)", border: "1px solid var(--border)", borderBottom: "none", borderRadius: "14px 14px 0 0", position: "relative", overflow: "hidden" }}>
+                    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, #8b5cf6, #6366f1, transparent)" }} />
+                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "#8b5cf6", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#8b5cf6", boxShadow: "0 0 6px rgba(139,92,246,0.7)", display: "inline-block" }} />
+                        Execution Roadmap
+                    </div>
+                    <h2 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 700, letterSpacing: "-0.6px", color: "var(--text)", margin: 0 }}>
+                        {data?.phases?.length ?? 0}-Phase Plan
+                    </h2>
+                </div>
+            </FadeIn>
+
+            <div style={{ background: "var(--bg)", border: "1px solid var(--border)", borderTop: "none", borderRadius: "0 0 14px 14px", overflow: "hidden" }}>
                 {data?.phases?.map((phase: any, i: number) => {
                     const isOpen = expandedPhase === phase.phase;
+                    const isLast = i === (data?.phases?.length ?? 0) - 1;
+                    const color = phaseColors[i % phaseColors.length];
+
                     return (
-                        <FadeIn key={phase.phase} delay={i * 150}>
-                            <div style={{
-                                border: `1px solid ${isOpen ? "var(--primary-border)" : "var(--border)"}`,
-                                borderRadius: "var(--r)",
-                                background: isOpen ? "var(--primary-soft)" : "var(--surface)",
-                                transition: "all 0.2s",
-                            }}>
-                                <div onClick={() => setExpandedPhase(isOpen ? 0 : phase.phase)} style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 16px", cursor: "pointer" }}>
-                                    <span style={{
-                                        width: 26, height: 26, borderRadius: "50%",
-                                        background: isOpen ? "var(--primary)" : "var(--border)",
-                                        color: isOpen ? "#fff" : "var(--text-4)",
-                                        display: "flex", alignItems: "center", justifyContent: "center",
-                                        fontSize: 11, fontWeight: 700, flexShrink: 0, transition: "all 0.2s",
-                                    }}>{phase.phase}</span>
-                                    <span style={{ fontWeight: 600, fontSize: 14, flex: 1, color: "var(--text)" }}>{phase.title}</span>
-                                    <span style={{ fontSize: 11.5, color: "var(--text-4)", border: "1px solid var(--border)", padding: "2px 8px", borderRadius: 20, background: "var(--bg)", whiteSpace: "nowrap" as const }}>{phase.duration}</span>
-                                    <span style={{ fontSize: 14, color: "var(--text-4)", marginLeft: 4, transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "rotate(0deg)" }}>›</span>
+                        <FadeIn key={phase.phase} delay={i * 100}>
+                            <div style={{ borderBottom: isLast ? "none" : "1px solid var(--border)" }}>
+                                <div
+                                    onClick={() => setExpandedPhase(isOpen ? 0 : phase.phase)}
+                                    style={{ display: "flex", alignItems: "center", gap: isMobile ? 10 : 16, padding: isMobile ? "14px 16px" : "18px 28px", cursor: "pointer", transition: "background 0.15s", background: isOpen ? "rgba(99,102,241,0.03)" : "transparent" }}
+                                    onMouseEnter={e => { if (!isOpen) (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.02)"; }}
+                                    onMouseLeave={e => { if (!isOpen) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                                >
+                                    <div style={{ width: isMobile ? 28 : 34, height: isMobile ? 28 : 34, borderRadius: "50%", background: isOpen ? color : "transparent", border: `2px solid ${isOpen ? color : "var(--border)"}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMobile ? 11 : 12, fontWeight: 700, color: isOpen ? "#fff" : "var(--text-4)", flexShrink: 0, transition: "all 0.2s", boxShadow: isOpen ? `0 0 12px ${color}40` : "none" }}>
+                                        {phase.phase}
+                                    </div>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontSize: isMobile ? 13 : 14.5, fontWeight: 600, color: isOpen ? "var(--text)" : "var(--text-2)", letterSpacing: "-0.2px", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: isMobile ? "nowrap" : "normal" }}>{phase.title}</div>
+                                        <div style={{ fontSize: 11.5, color: "var(--text-4)" }}>{phase.duration}</div>
+                                    </div>
+                                    {!isMobile && (
+                                        <div style={{ fontSize: 10.5, fontWeight: 600, padding: "3px 10px", borderRadius: 20, border: `1px solid ${isOpen ? color + "40" : "var(--border)"}`, color: isOpen ? color : "var(--text-4)", background: isOpen ? color + "12" : "transparent", transition: "all 0.2s", whiteSpace: "nowrap" }}>
+                                            Phase {phase.phase}
+                                        </div>
+                                    )}
+                                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ color: "var(--text-4)", transform: isOpen ? "rotate(180deg)" : "rotate(0)", transition: "transform 0.2s", flexShrink: 0 }}>
+                                        <path d="M3 5L7 9L11 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
                                 </div>
+
                                 {isOpen && (
-                                    <div style={{ padding: "0 16px 16px", display: "flex", flexDirection: "column", gap: 14 }}>
+                                    <div style={{ padding: isMobile ? "4px 16px 20px 16px" : "4px 28px 24px 78px", display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 14 : 16 }}>
                                         {phase.goals?.length > 0 && (
                                             <div>
-                                                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "var(--primary)", marginBottom: 6 }}>Goals</div>
-                                                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                                                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#22c55e", marginBottom: 10 }}>Goals</div>
+                                                <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
                                                     {phase.goals.map((g: string, j: number) => (
-                                                        <div key={j} style={{ display: "flex", gap: 8, fontSize: 13, color: "var(--text-2)" }}>
-                                                            <span style={{ color: "#16a34a", flexShrink: 0, marginTop: 1 }}>✓</span>{g}
+                                                        <div key={j} style={{ display: "flex", gap: 9, fontSize: 13, color: "var(--text-2)", lineHeight: 1.5 }}>
+                                                            <span style={{ color: "#22c55e", flexShrink: 0, marginTop: 1, fontSize: 11 }}>✓</span>{g}
                                                         </div>
                                                     ))}
                                                 </div>
@@ -435,32 +319,32 @@ function StreamingRoadmap({ data, isStreaming }: { data: any; isStreaming: boole
                                         )}
                                         {phase.milestones?.length > 0 && (
                                             <div>
-                                                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "var(--text-4)", marginBottom: 6 }}>Milestones</div>
-                                                <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                                                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-4)", marginBottom: 10 }}>Milestones</div>
+                                                <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
                                                     {phase.milestones.map((m: string, j: number) => (
-                                                        <div key={j} style={{ display: "flex", gap: 8, fontSize: 13, color: "var(--text-3)" }}>
-                                                            <span style={{ flexShrink: 0, marginTop: 2 }}>→</span>{m}
+                                                        <div key={j} style={{ display: "flex", gap: 9, fontSize: 13, color: "var(--text-3)", lineHeight: 1.5 }}>
+                                                            <span style={{ color: color, flexShrink: 0, marginTop: 2, fontSize: 10 }}>→</span>{m}
                                                         </div>
                                                     ))}
                                                 </div>
                                             </div>
                                         )}
                                         {phase.deliverables?.length > 0 && (
-                                            <div>
-                                                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "var(--text-4)", marginBottom: 6 }}>Deliverables</div>
+                                            <div style={{ gridColumn: "1 / -1" }}>
+                                                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-4)", marginBottom: 8 }}>Deliverables</div>
                                                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                                                     {phase.deliverables.map((d: string, j: number) => (
-                                                        <span key={j} style={{ fontSize: 11.5, padding: "3px 10px", border: "1px solid var(--primary-border)", borderRadius: 20, color: "var(--primary)", background: "var(--primary-soft)" }}>{d}</span>
+                                                        <span key={j} style={{ fontSize: 11.5, padding: "4px 12px", border: `1px solid ${color}30`, borderRadius: 6, color: color, background: `${color}0d`, fontWeight: 500 }}>{d}</span>
                                                     ))}
                                                 </div>
                                             </div>
                                         )}
                                         {phase.teamRequired?.length > 0 && (
-                                            <div>
-                                                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "var(--text-4)", marginBottom: 6 }}>Team Required</div>
+                                            <div style={{ gridColumn: "1 / -1" }}>
+                                                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-4)", marginBottom: 8 }}>Team</div>
                                                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                                                     {phase.teamRequired.map((t: string, j: number) => (
-                                                        <span key={j} style={{ fontSize: 11.5, padding: "3px 10px", border: "1px solid var(--border)", borderRadius: 20, color: "var(--text-3)", background: "var(--bg)" }}>{t}</span>
+                                                        <span key={j} style={{ fontSize: 11.5, padding: "4px 12px", border: "1px solid var(--border)", borderRadius: 6, color: "var(--text-3)", background: "var(--surface)" }}>{t}</span>
                                                     ))}
                                                 </div>
                                             </div>
@@ -476,35 +360,73 @@ function StreamingRoadmap({ data, isStreaming }: { data: any; isStreaming: boole
     );
 }
 
-function StreamingPrompts({ data, isStreaming }: { data: any; isStreaming: boolean }) {
+// ════════════════════════════════════════════════════════
+// PROMPT PACKS
+// ════════════════════════════════════════════════════════
+const TOOL_COLORS: Record<string, { bg: string; color: string; border: string }> = {
+    "cursor": { bg: "rgba(99,102,241,0.1)", color: "#a5b4fc", border: "rgba(99,102,241,0.25)" },
+    "chatgpt": { bg: "rgba(16,185,129,0.08)", color: "#6ee7b7", border: "rgba(16,185,129,0.2)" },
+    "claude": { bg: "rgba(251,146,60,0.08)", color: "#fed7aa", border: "rgba(251,146,60,0.2)" },
+    "v0": { bg: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.6)", border: "rgba(255,255,255,0.12)" },
+    "midjourney": { bg: "rgba(168,85,247,0.08)", color: "#d8b4fe", border: "rgba(168,85,247,0.2)" },
+    "perplexity": { bg: "rgba(56,189,248,0.08)", color: "#7dd3fc", border: "rgba(56,189,248,0.2)" },
+};
+
+function getToolStyle(tool: string) {
+    const key = tool?.toLowerCase?.() ?? "";
+    for (const k of Object.keys(TOOL_COLORS)) {
+        if (key.includes(k)) return TOOL_COLORS[k];
+    }
+    return { bg: "rgba(255,255,255,0.04)", color: "var(--text-4)", border: "var(--border)" };
+}
+
+function StreamingPrompts({ data, isStreaming, isMobile }: { data: any; isStreaming: boolean; isMobile?: boolean }) {
     return (
-        <div style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "var(--r-lg)", padding: 24 }}>
-            <FadeIn><h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, letterSpacing: "-0.3px" }}>AI Prompt Packs</h2></FadeIn>
-            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+            <FadeIn>
+                <div style={{ padding: isMobile ? "20px 18px 16px" : "28px 30px 24px", background: "var(--bg)", border: "1px solid var(--border)", borderBottom: "none", borderRadius: "14px 14px 0 0", position: "relative", overflow: "hidden" }}>
+                    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, #f59e0b, #fbbf24, transparent)" }} />
+                    <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "#f59e0b", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#f59e0b", boxShadow: "0 0 6px rgba(245,158,11,0.7)", display: "inline-block" }} />
+                        AI Prompt Packs
+                    </div>
+                    <h2 style={{ fontSize: isMobile ? 18 : 22, fontWeight: 700, letterSpacing: "-0.6px", color: "var(--text)", margin: 0 }}>
+                        {data?.packs?.reduce((acc: number, p: any) => acc + (p.prompts?.length ?? 0), 0) ?? 0} prompts across {data?.packs?.length ?? 0} phases
+                    </h2>
+                </div>
+            </FadeIn>
+
+            <div style={{ background: "var(--bg)", border: "1px solid var(--border)", borderTop: "none", borderRadius: "0 0 14px 14px", overflow: "hidden" }}>
                 {data?.packs?.map((pack: any, i: number) => (
-                    <FadeIn key={i} delay={i * 120}>
-                        <div>
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                                <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", padding: "2px 8px", borderRadius: 20, background: "var(--primary)", color: "#fff" }}>{pack.phase}</span>
-                                <span style={{ fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "var(--text-4)" }}>{pack.category}</span>
+                    <FadeIn key={i} delay={i * 80}>
+                        <div style={{ borderBottom: i < (data.packs.length - 1) ? "1px solid var(--border)" : "none" }}>
+                            <div style={{ padding: isMobile ? "12px 16px 8px" : "14px 28px 10px", display: "flex", alignItems: "center", gap: 10 }}>
+                                <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", padding: "3px 9px", borderRadius: 5, background: "rgba(245,158,11,0.1)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.2)" }}>{pack.phase}</span>
+                                <span style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-4)" }}>{pack.category}</span>
                             </div>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                                {pack.prompts?.map((p: any, j: number) => (
-                                    <FadeIn key={j} delay={j * 80}>
-                                        <div style={{ padding: 14, border: "1px solid var(--border)", borderRadius: "var(--r)", background: "var(--surface)", transition: "border-color 0.12s" }}
-                                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = "var(--primary-border)"}
-                                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"}>
-                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8, gap: 8, flexWrap: "wrap" as const }}>
-                                                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{p.title}</span>
-                                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                                    <span style={{ fontSize: 11, color: "var(--primary)", border: "1px solid var(--primary-border)", background: "var(--primary-soft)", padding: "2px 8px", borderRadius: 20, fontWeight: 500 }}>{p.tool}</span>
-                                                    <CopyButton text={p.prompt} />
+
+                            <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+                                {pack.prompts?.map((p: any, j: number) => {
+                                    const toolStyle = getToolStyle(p.tool ?? "");
+                                    return (
+                                        <FadeIn key={j} delay={j * 50}>
+                                            <div style={{ margin: isMobile ? "0 10px 10px" : "0 16px 12px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--surface)", overflow: "hidden", transition: "border-color 0.15s" }}
+                                                onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = "rgba(99,102,241,0.3)"}
+                                                onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"}>
+                                                <div style={{ display: "flex", alignItems: isMobile ? "flex-start" : "center", justifyContent: "space-between", padding: "10px 14px", borderBottom: "1px solid var(--border)", gap: 10, flexDirection: isMobile ? "column" : "row" }}>
+                                                    <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>{p.title}</span>
+                                                    <div style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0 }}>
+                                                        <span style={{ fontSize: 10.5, fontWeight: 600, padding: "3px 9px", borderRadius: 5, background: toolStyle.bg, color: toolStyle.color, border: `1px solid ${toolStyle.border}` }}>{p.tool}</span>
+                                                        <CopyButton text={p.prompt} />
+                                                    </div>
+                                                </div>
+                                                <div style={{ padding: "12px 14px", fontFamily: "'SF Mono', 'Fira Code', 'Fira Mono', monospace", fontSize: isMobile ? 11.5 : 12.5, color: "var(--text-3)", lineHeight: 1.75, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                                                    {p.prompt}
                                                 </div>
                                             </div>
-                                            <p style={{ fontSize: 12.5, color: "var(--text-3)", lineHeight: 1.7, margin: 0 }}>{p.prompt}</p>
-                                        </div>
-                                    </FadeIn>
-                                ))}
+                                        </FadeIn>
+                                    );
+                                })}
                             </div>
                         </div>
                     </FadeIn>
@@ -514,247 +436,221 @@ function StreamingPrompts({ data, isStreaming }: { data: any; isStreaming: boole
     );
 }
 
+// ════════════════════════════════════════════════════════
+// FEASIBILITY
+// ════════════════════════════════════════════════════════
 function StreamingFeasibility({ data, isStreaming, isMobile }: { data: any; isStreaming: boolean; isMobile: boolean }) {
     const { displayed: recommendation, done: recDone } = useTypewriter(data?.recommendation ?? "", 45, isStreaming);
     const score = data?.score ?? 0;
-    const scoreColor = score >= 70 ? "#16a34a" : score >= 50 ? "#f59e0b" : "#dc2626";
+    const scoreColor = score >= 70 ? "#22c55e" : score >= 50 ? "#f59e0b" : "#ef4444";
+    const scoreLabel = score >= 75 ? "Strong Idea" : score >= 60 ? "Viable Idea" : score >= 45 ? "Needs Work" : "High Risk";
+    const circumference = 2 * Math.PI * 52;
+
     return (
-        <div style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: "var(--r-lg)", padding: 24 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
             <FadeIn>
-                <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 20, letterSpacing: "-0.3px" }}>Feasibility Analysis</h2>
-                <div style={{ padding: 20, border: "1px solid var(--border)", borderRadius: "var(--r)", background: "var(--surface)", marginBottom: 20, display: "flex", alignItems: "center", gap: 20 }}>
-                    <div style={{ position: "relative", width: 72, height: 72, flexShrink: 0 }}>
-                        <svg width="72" height="72" viewBox="0 0 72 72" style={{ transform: "rotate(-90deg)" }}>
-                            <circle cx="36" cy="36" r="30" fill="none" stroke="var(--border)" strokeWidth="6" />
-                            <circle cx="36" cy="36" r="30" fill="none" stroke={scoreColor} strokeWidth="6"
-                                strokeDasharray={`${2 * Math.PI * 30}`}
-                                strokeDashoffset={`${2 * Math.PI * 30 * (1 - score / 100)}`}
-                                strokeLinecap="round" style={{ transition: "stroke-dashoffset 1s ease" }} />
-                        </svg>
-                        <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 700, color: scoreColor }}>{score}</div>
-                    </div>
-                    <div>
-                        <div style={{ fontSize: 22, fontWeight: 700, color: scoreColor, letterSpacing: "-0.5px", marginBottom: 3 }}>
-                            {score >= 75 ? "Strong Idea" : score >= 60 ? "Viable Idea" : score >= 45 ? "Needs Work" : "High Risk"}
+                <div style={{ padding: isMobile ? "20px 18px 18px" : "32px 32px 28px", background: "var(--bg)", border: "1px solid var(--border)", borderBottom: "none", borderRadius: "14px 14px 0 0", position: "relative", overflow: "hidden" }}>
+                    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${scoreColor}, ${scoreColor}88, transparent)` }} />
+                    <div style={{ position: "absolute", top: -40, left: -40, width: 180, height: 180, borderRadius: "50%", background: scoreColor, opacity: 0.04, filter: "blur(40px)", pointerEvents: "none" }} />
+
+                    <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 20 : 32, flexWrap: "wrap", position: "relative" }}>
+                        <div style={{ position: "relative", width: isMobile ? 100 : 120, height: isMobile ? 100 : 120, flexShrink: 0 }}>
+                            <svg width={isMobile ? 100 : 120} height={isMobile ? 100 : 120} viewBox="0 0 120 120" style={{ transform: "rotate(-90deg)" }}>
+                                <circle cx="60" cy="60" r="52" fill="none" stroke="var(--border)" strokeWidth="6" />
+                                <circle cx="60" cy="60" r="52" fill="none" stroke={scoreColor} strokeWidth="6"
+                                    strokeDasharray={circumference}
+                                    strokeDashoffset={circumference * (1 - score / 100)}
+                                    strokeLinecap="round"
+                                    style={{ transition: "stroke-dashoffset 1.2s cubic-bezier(0.4,0,0.2,1)", filter: `drop-shadow(0 0 6px ${scoreColor}60)` }} />
+                            </svg>
+                            <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1 }}>
+                                <span style={{ fontSize: isMobile ? 24 : 28, fontWeight: 700, letterSpacing: "-1.5px", color: scoreColor, lineHeight: 1 }}>{score}</span>
+                                <span style={{ fontSize: 10, color: "var(--text-4)", fontWeight: 500 }}>/100</span>
+                            </div>
                         </div>
-                        <div style={{ fontSize: 12.5, color: "var(--text-3)", textTransform: "capitalize" as const }}>{data?.confidence} confidence · Score {score}/100</div>
-                        {data?.timeToMarket && <div style={{ fontSize: 12, color: "var(--text-4)", marginTop: 4 }}>⏱ {data.timeToMarket}</div>}
+
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: scoreColor, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ width: 5, height: 5, borderRadius: "50%", background: scoreColor, display: "inline-block", boxShadow: `0 0 6px ${scoreColor}` }} />
+                                Feasibility Score
+                            </div>
+                            <div style={{ fontSize: isMobile ? 22 : 30, fontWeight: 700, letterSpacing: "-1px", color: "var(--text)", marginBottom: 6, lineHeight: 1.1 }}>{scoreLabel}</div>
+                            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                                <span style={{ fontSize: 12, color: "var(--text-4)", textTransform: "capitalize" }}>{data?.confidence} confidence</span>
+                                {data?.timeToMarket && <span style={{ fontSize: 12, color: "var(--text-4)" }}>· ⏱ {data.timeToMarket}</span>}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </FadeIn>
-            <FadeIn delay={200}>
-                <div style={{ marginBottom: 20 }}>
-                    <SectionLabel>Recommendation</SectionLabel>
-                    <p style={{ fontSize: 14, color: "var(--text-2)", lineHeight: 1.75 }}>
+
+            <FadeIn delay={100}>
+                <div style={{ padding: isMobile ? "16px 18px" : "22px 30px", background: "var(--bg)", border: "1px solid var(--border)", borderTop: "none" }}>
+                    <Label>Recommendation</Label>
+                    <p style={{ fontSize: isMobile ? 13 : 14, color: "var(--text-2)", lineHeight: 1.8, margin: 0 }}>
                         {recommendation}<Cursor visible={isStreaming && !recDone} />
                     </p>
                 </div>
             </FadeIn>
+
             {(recDone || !isStreaming) && (
-                <FadeIn delay={100}>
-                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 16, marginBottom: 16 }}>
-                        <div style={{ padding: 16, border: "1px solid rgba(22,163,74,0.2)", borderRadius: "var(--r)", background: "rgba(22,163,74,0.04)" }}>
-                            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "#16a34a", marginBottom: 10 }}>Strengths</div>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                <FadeIn delay={140}>
+                    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 0 }}>
+                        <div style={{ padding: isMobile ? "16px 18px" : "22px 28px", background: "var(--bg)", border: "1px solid var(--border)", borderTop: "none", borderRight: isMobile ? "1px solid var(--border)" : "none", borderBottom: isMobile ? "1px solid var(--border)" : "none" }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "#22c55e", marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ width: 16, height: 1, background: "#22c55e", display: "inline-block" }} /> Strengths
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
                                 {data?.strengths?.map((s: string, i: number) => (
-                                    <FadeIn key={i} delay={i * 80}>
-                                        <div style={{ display: "flex", gap: 8, fontSize: 13, color: "var(--text-2)" }}>
-                                            <span style={{ flexShrink: 0, color: "#16a34a", marginTop: 1 }}>✓</span>{s}
+                                    <FadeIn key={i} delay={i * 60}>
+                                        <div style={{ display: "flex", gap: 10, fontSize: 13, color: "var(--text-2)", lineHeight: 1.55 }}>
+                                            <span style={{ flexShrink: 0, color: "#22c55e", marginTop: 1, fontSize: 11 }}>✓</span>{s}
                                         </div>
                                     </FadeIn>
                                 ))}
                             </div>
                         </div>
-                        <div style={{ padding: 16, border: "1px solid rgba(220,38,38,0.2)", borderRadius: "var(--r)", background: "rgba(220,38,38,0.03)" }}>
-                            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "#dc2626", marginBottom: 10 }}>Risks</div>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                        <div style={{ padding: isMobile ? "16px 18px" : "22px 28px", background: "var(--bg)", border: "1px solid var(--border)", borderTop: "none", borderLeft: isMobile ? "1px solid var(--border)" : "none" }}>
+                            <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "#ef4444", marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ width: 16, height: 1, background: "#ef4444", display: "inline-block" }} /> Risks
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
                                 {data?.risks?.map((r: string, i: number) => (
-                                    <FadeIn key={i} delay={i * 80}>
-                                        <div style={{ display: "flex", gap: 8, fontSize: 13, color: "var(--text-2)" }}>
-                                            <span style={{ flexShrink: 0, color: "#dc2626", marginTop: 1 }}>⚠</span>{r}
+                                    <FadeIn key={i} delay={i * 60}>
+                                        <div style={{ display: "flex", gap: 10, fontSize: 13, color: "var(--text-2)", lineHeight: 1.55 }}>
+                                            <span style={{ flexShrink: 0, color: "#ef4444", marginTop: 1, fontSize: 11 }}>⚠</span>{r}
                                         </div>
                                     </FadeIn>
                                 ))}
                             </div>
                         </div>
                     </div>
-                    {data?.opportunities?.length > 0 && (
-                        <FadeIn delay={200}>
-                            <div style={{ padding: 16, border: "1px solid rgba(59,130,246,0.2)", borderRadius: "var(--r)", background: "rgba(59,130,246,0.03)", marginBottom: 16 }}>
-                                <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.08em", color: "#3b82f6", marginBottom: 10 }}>Opportunities</div>
-                                <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-                                    {data.opportunities.map((o: string, i: number) => (
-                                        <FadeIn key={i} delay={i * 80}>
-                                            <div style={{ display: "flex", gap: 8, fontSize: 13, color: "var(--text-2)" }}>
-                                                <span style={{ flexShrink: 0, color: "#3b82f6", marginTop: 1 }}>↗</span>{o}
-                                            </div>
-                                        </FadeIn>
-                                    ))}
-                                </div>
-                            </div>
-                        </FadeIn>
-                    )}
-                    {data?.topCompetitors?.length > 0 && (
-                        <FadeIn delay={300}>
-                            <div>
-                                <SectionLabel>Top Competitors</SectionLabel>
-                                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                                    {data.topCompetitors.map((c: string, i: number) => (
-                                        <span key={i} style={{ fontSize: 12, padding: "4px 12px", border: "1px solid var(--border)", borderRadius: 20, color: "var(--text-3)", background: "var(--surface)" }}>{c}</span>
-                                    ))}
-                                </div>
-                            </div>
-                        </FadeIn>
-                    )}
+                </FadeIn>
+            )}
+
+            {(recDone || !isStreaming) && data?.opportunities?.length > 0 && (
+                <FadeIn delay={200}>
+                    <div style={{ padding: isMobile ? "16px 18px" : "22px 28px", background: "var(--bg)", border: "1px solid var(--border)", borderTop: "none" }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "#38bdf8", marginBottom: 14, display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ width: 16, height: 1, background: "#38bdf8", display: "inline-block" }} /> Opportunities
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+                            {data.opportunities.map((o: string, i: number) => (
+                                <FadeIn key={i} delay={i * 60}>
+                                    <div style={{ display: "flex", gap: 10, fontSize: 13, color: "var(--text-2)", lineHeight: 1.55 }}>
+                                        <span style={{ flexShrink: 0, color: "#38bdf8", marginTop: 1, fontSize: 11 }}>↗</span>{o}
+                                    </div>
+                                </FadeIn>
+                            ))}
+                        </div>
+                    </div>
+                </FadeIn>
+            )}
+
+            {(recDone || !isStreaming) && data?.topCompetitors?.length > 0 && (
+                <FadeIn delay={240}>
+                    <div style={{ padding: isMobile ? "16px 18px" : "20px 28px", background: "var(--bg)", border: "1px solid var(--border)", borderTop: "none", borderRadius: "0 0 14px 14px" }}>
+                        <Label>Top Competitors</Label>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
+                            {data.topCompetitors.map((c: string, i: number) => (
+                                <span key={i} style={{ fontSize: 12, padding: "5px 13px", border: "1px solid var(--border)", borderRadius: 7, color: "var(--text-3)", background: "var(--surface)", fontWeight: 500 }}>{c}</span>
+                            ))}
+                        </div>
+                    </div>
                 </FadeIn>
             )}
         </div>
     );
 }
 
-// ── Limit wall ───────────────────────────────────────────
+// ════════════════════════════════════════════════════════
+// INSIGHT PANEL (desktop sidebar)
+// ════════════════════════════════════════════════════════
+function InsightPanel({ data }: { data: any }) {
+    if (!data) return null;
+    const score = data.feasibility?.score;
+    const revenueModel = data.blueprint?.revenueModel;
+    const marketSize = data.blueprint?.marketSize;
+    const timeToMarket = data.feasibility?.timeToMarket;
+    const topCompetitors = data.feasibility?.topCompetitors;
+    const scoreColor = score !== undefined ? (score >= 70 ? "#22c55e" : score >= 50 ? "#f59e0b" : "#ef4444") : "var(--primary)";
 
-function CountdownTimer({ resetAt }: { resetAt: string }) {
-    const [timeLeft, setTimeLeft] = useState("");
-    useEffect(() => {
-        const update = () => {
-            const diff = new Date(resetAt).getTime() - Date.now();
-            if (diff <= 0) { setTimeLeft("Refreshing..."); return; }
-            const h = Math.floor(diff / 3600000), m = Math.floor((diff % 3600000) / 60000), s = Math.floor((diff % 60000) / 1000);
-            setTimeLeft(`${h}h ${m}m ${s}s`);
-        };
-        update();
-        const interval = setInterval(update, 1000);
-        return () => clearInterval(interval);
-    }, [resetAt]);
-    return <span style={{ fontWeight: 600, color: "var(--text)" }}>{timeLeft}</span>;
-}
-
-function LimitWall({ resetAt, onUpgrade }: { resetAt?: string; onUpgrade: () => void }) {
     return (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "50vh", textAlign: "center", padding: "0 16px" }}>
-            <div style={{ width: 52, height: 52, borderRadius: "50%", background: "rgba(234,179,8,0.1)", border: "2px solid rgba(234,179,8,0.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, marginBottom: 20 }}>⚡</div>
-            <h2 style={{ fontSize: 20, fontWeight: 600, letterSpacing: "-0.4px", marginBottom: 8 }}>You've used all 5 free generations</h2>
-            <p style={{ fontSize: 14, color: "var(--text-3)", lineHeight: 1.7, maxWidth: 380, marginBottom: 28 }}>Upgrade to Pro for unlimited generations, or wait for your free plan to reset.</p>
-            {resetAt && (
-                <div style={{ padding: "12px 20px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r)", fontSize: 13, color: "var(--text-3)", marginBottom: 24 }}>
-                    Free plan resets in: <CountdownTimer resetAt={resetAt} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {revenueModel && (
+                <div style={{ borderRadius: 12, border: "1px solid rgba(99,102,241,0.25)", background: "rgba(99,102,241,0.06)", padding: "18px 20px", position: "relative", overflow: "hidden" }}>
+                    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1.5, background: "linear-gradient(90deg,#6366f1,#8b5cf6)" }} />
+                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#a5b4fc", marginBottom: 10 }}>Revenue Model</div>
+                    <p style={{ fontSize: 12.5, color: "rgba(255,255,255,0.7)", lineHeight: 1.65, margin: 0 }}>{revenueModel}</p>
+                    {marketSize && (
+                        <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid rgba(99,102,241,0.2)" }}>
+                            <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "rgba(165,180,252,0.5)", marginBottom: 4 }}>Market Size</div>
+                            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", lineHeight: 1.5, margin: 0 }}>{marketSize}</p>
+                        </div>
+                    )}
                 </div>
             )}
-            <button onClick={onUpgrade} style={{ padding: "11px 28px", background: "var(--primary)", color: "#fff", border: "none", borderRadius: "var(--r)", fontFamily: "var(--font)", fontSize: 13.5, fontWeight: 500, cursor: "pointer" }}>
-                Upgrade to Pro →
-            </button>
-        </div>
-    );
-}
 
-// ── Project card ─────────────────────────────────────────
-
-function ProjectCard({ project, onClick, onDelete }: { project: any; onClick: () => void; onDelete: () => void }) {
-    const [hovered, setHovered] = useState(false);
-    const [confirmDelete, setConfirmDelete] = useState(false);
-    const tagline = project.blueprint?.tagline ?? "";
-    const date = new Date(project.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-    const outputs = ["blueprint", "roadmap", "prompts", "feasibility"];
-    const completed = outputs.filter(k => project[k] !== null && project[k] !== undefined).length;
-    const progress = Math.round((completed / outputs.length) * 100);
-    const initials = project.title?.slice(0, 2).toUpperCase() ?? "??";
-    const colors = ["#6366f1", "#10b981", "#f59e0b", "#ec4899", "#3b82f6", "#14213d"];
-    const color = colors[project.title?.charCodeAt(0) % colors.length] ?? colors[0];
-
-    return (
-        <div
-            onClick={onClick}
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => { setHovered(false); setConfirmDelete(false); }}
-            style={{
-                padding: "18px 20px",
-                border: `1px solid ${hovered ? "var(--primary-border)" : "var(--border)"}`,
-                borderRadius: "var(--r-lg)", background: "var(--bg)", cursor: "pointer",
-                transition: "border-color 0.15s, box-shadow 0.15s", position: "relative",
-                boxShadow: hovered ? "0 4px 16px rgba(20,33,61,0.08)" : "none",
-            }}
-        >
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 14 }}>
-                <div style={{ width: 40, height: 40, borderRadius: 12, background: color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: "#fff", flexShrink: 0 }}>{initials}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text)", marginBottom: 3, paddingRight: 70, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{project.title}</div>
-                    {tagline && <div style={{ fontSize: 12.5, color: "var(--text-3)", lineHeight: 1.4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{tagline}</div>}
+            {score !== undefined && (
+                <div style={{ borderRadius: 12, border: "1px solid var(--border)", background: "var(--bg)", padding: "18px 20px" }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-4)", marginBottom: 12 }}>Feasibility</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                        <span style={{ fontSize: 42, fontWeight: 700, letterSpacing: "-2px", lineHeight: 1, color: scoreColor }}>{score}</span>
+                        <div>
+                            <div style={{ fontSize: 11, color: scoreColor, fontWeight: 600 }}>/100</div>
+                            <div style={{ fontSize: 11, color: "var(--text-4)", textTransform: "capitalize", marginTop: 2 }}>{data.feasibility?.confidence}</div>
+                        </div>
+                    </div>
+                    <div style={{ height: 4, background: "var(--border)", borderRadius: 10, overflow: "hidden" }}>
+                        <div style={{ width: `${score}%`, height: "100%", background: scoreColor, borderRadius: 10, transition: "width 1.2s ease", boxShadow: `0 0 6px ${scoreColor}60` }} />
+                    </div>
+                    {timeToMarket && <div style={{ marginTop: 10, fontSize: 11.5, color: "var(--text-4)" }}>⏱ {timeToMarket}</div>}
                 </div>
-                <div style={{
-                    position: "absolute", top: 18, right: 18, fontSize: 10.5, fontWeight: 600,
-                    padding: "2px 8px", borderRadius: 20, whiteSpace: "nowrap" as const,
-                    background: progress === 100 ? "rgba(22,163,74,0.1)" : "rgba(20,33,61,0.06)",
-                    color: progress === 100 ? "#16a34a" : "var(--primary)",
-                    border: `1px solid ${progress === 100 ? "rgba(22,163,74,0.2)" : "var(--primary-border)"}`,
-                }}>
-                    {progress === 100 ? "Complete" : "In Progress"}
+            )}
+
+            {data.blueprint?.techStack?.length > 0 && (
+                <div style={{ borderRadius: 12, border: "1px solid var(--border)", background: "var(--bg)", padding: "16px 18px" }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-4)", marginBottom: 10 }}>Tech Stack</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                        {data.blueprint.techStack.map((t: any, i: number) => {
+                            const label = typeof t === "string" ? t : t?.name ?? "";
+                            return <span key={i} style={{ fontSize: 11, padding: "3px 9px", border: "1px solid rgba(99,102,241,0.2)", borderRadius: 6, color: "#a5b4fc", background: "rgba(99,102,241,0.06)", fontWeight: 500 }}>{label}</span>;
+                        })}
+                    </div>
                 </div>
-            </div>
-            <div style={{ marginBottom: 10 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                    <div style={{ display: "flex", gap: 4 }}>
-                        {outputs.map(k => (
-                            <div key={k} style={{ width: 8, height: 8, borderRadius: "50%", background: project[k] ? "var(--primary)" : "var(--border)", transition: "background 0.2s" }} />
+            )}
+
+            {topCompetitors?.length > 0 && (
+                <div style={{ borderRadius: 12, border: "1px solid var(--border)", background: "var(--bg)", padding: "16px 18px" }}>
+                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "var(--text-4)", marginBottom: 10 }}>Competitors</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                        {topCompetitors.map((c: string, i: number) => (
+                            <div key={i} style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 12.5, color: "var(--text-3)" }}>
+                                <span style={{ width: 16, height: 16, borderRadius: 5, background: "var(--surface)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color: "var(--text-4)", flexShrink: 0 }}>{i + 1}</span>
+                                {c}
+                            </div>
                         ))}
                     </div>
-                    <span style={{ fontSize: 11.5, color: "var(--text-4)", fontWeight: 500 }}>{progress}% Done</span>
-                </div>
-                <div style={{ height: 4, background: "var(--border)", borderRadius: 10, overflow: "hidden" }}>
-                    <div style={{ width: `${progress}%`, height: "100%", background: "var(--primary)", borderRadius: 10, transition: "width 0.6s ease" }} />
-                </div>
-            </div>
-            <div style={{ fontSize: 11.5, color: "var(--text-4)" }}>{date}</div>
-
-            {hovered && !confirmDelete && (
-                <button
-                    onClick={e => { e.stopPropagation(); setConfirmDelete(true); }}
-                    style={{ position: "absolute", bottom: 16, right: 16, fontSize: 11.5, color: "var(--text-4)", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 6, padding: "3px 10px", cursor: "pointer" }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "#dc2626"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(220,38,38,0.4)"; (e.currentTarget as HTMLElement).style.background = "rgba(220,38,38,0.06)"; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "var(--text-4)"; (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.background = "var(--surface)"; }}>
-                    Delete
-                </button>
-            )}
-            {confirmDelete && (
-                <div onClick={e => e.stopPropagation()} style={{ position: "absolute", bottom: 16, right: 16, display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontSize: 11.5, color: "#dc2626", fontWeight: 500 }}>Delete?</span>
-                    <button onClick={e => { e.stopPropagation(); onDelete(); }} style={{ fontSize: 11.5, padding: "3px 8px", background: "#dc2626", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontWeight: 500 }}>Yes</button>
-                    <button onClick={e => { e.stopPropagation(); setConfirmDelete(false); }} style={{ fontSize: 11.5, padding: "3px 8px", background: "transparent", color: "var(--text-3)", border: "1px solid var(--border)", borderRadius: 6, cursor: "pointer" }}>No</button>
                 </div>
             )}
         </div>
     );
 }
 
-// ── Mobile nav bar ───────────────────────────────────────
-
-function MobileNavBar({ currentView, onHome, onProjects, onSettings, showResults, activeTab, setActiveTab, displayResults, isStreaming }: any) {
-    const router = useRouter();
-    const resultTabs = [
-        { key: "blueprint", label: "Blueprint", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="9" y1="21" x2="9" y2="9" /></svg> },
-        { key: "roadmap", label: "Roadmap", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 17l4-8 4 4 4-6 4 10" /></svg> },
-        { key: "prompts", label: "Prompts", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg> },
-        { key: "feasibility", label: "Score", icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg> },
-    ];
-    const homeTabs = [
-        { key: "home", label: "Dashboard", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg>, action: onHome },
-        { key: "projects", label: "Projects", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>, action: onProjects },
-        { key: "roadmaps", label: "Roadmaps", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>, action: onHome },
-        { key: "settings", label: "Settings", icon: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>, action: () => router.push("/settings") },
-    ];
-    const tabs = showResults ? resultTabs : homeTabs;
+// ════════════════════════════════════════════════════════
+// MOBILE RESULT NAV
+// ════════════════════════════════════════════════════════
+function MobileResultNav({ activeTab, setActiveTab, displayResults, isStreaming }: any) {
+    const tabs = [{ key: "blueprint", label: "Blueprint" }, { key: "roadmap", label: "Roadmap" }, { key: "prompts", label: "Prompts" }, { key: "feasibility", label: "Score" }];
     return (
-        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 80, background: "var(--sidebar-bg)", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", height: 64, paddingBottom: "env(safe-area-inset-bottom)" }}>
-            {tabs.map((t: any) => {
-                const isActive = showResults ? activeTab === t.key : currentView === t.key;
-                const isDisabled = showResults && isStreaming && !displayResults?.[t.key];
+        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 80, background: "var(--sidebar-bg)", borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", height: 56 }}>
+            {tabs.map(t => {
+                const isActive = activeTab === t.key;
                 return (
-                    <button key={t.key}
-                        onClick={() => showResults ? setActiveTab(t.key) : t.action?.()}
-                        style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, background: "transparent", border: "none", cursor: "pointer", position: "relative", color: isActive ? "#fff" : "rgba(255,255,255,0.45)", opacity: isDisabled ? 0.3 : 1, transition: "color 0.15s, opacity 0.2s" }}>
-                        {t.icon}
-                        <span style={{ fontSize: 10, fontWeight: isActive ? 600 : 400, letterSpacing: "0.02em" }}>{t.label}</span>
-                        {isActive && <div style={{ position: "absolute", bottom: 0, width: 32, height: 2, background: "var(--primary)", borderRadius: "2px 2px 0 0" }} />}
+                    <button key={t.key} onClick={() => setActiveTab(t.key)}
+                        style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "transparent", border: "none", cursor: "pointer", position: "relative", color: isActive ? "#fff" : "rgba(255,255,255,0.35)", opacity: isStreaming && !displayResults?.[t.key] ? 0.3 : 1 }}>
+                        <span style={{ fontSize: 10.5, fontWeight: isActive ? 700 : 400, letterSpacing: "0.02em" }}>{t.label}</span>
+                        {isActive && <div style={{ position: "absolute", bottom: 0, width: 24, height: 2, background: "#6366f1", borderRadius: "2px 2px 0 0" }} />}
                     </button>
                 );
             })}
@@ -762,9 +658,20 @@ function MobileNavBar({ currentView, onHome, onProjects, onSettings, showResults
     );
 }
 
-// ── Main Think Dashboard ─────────────────────────────────
+// ════════════════════════════════════════════════════════
+// OUTPUT CARDS CONFIG
+// ════════════════════════════════════════════════════════
+const OUTPUTS = [
+    { key: "blueprint", label: "Blueprint", number: "01", icon: "📐", desc: "Product vision, core features, tech stack & competitive edge.", accent: "#a78bfa", accentBg: "rgba(139,92,246,0.08)", accentBorder: "rgba(139,92,246,0.2)", gradient: "linear-gradient(135deg,#6366f1,#8b5cf6)" },
+    { key: "roadmap", label: "Roadmap", number: "02", icon: "🗺️", desc: "Phase-by-phase execution plan with milestones & deliverables.", accent: "#38bdf8", accentBg: "rgba(56,189,248,0.06)", accentBorder: "rgba(56,189,248,0.15)", gradient: "linear-gradient(135deg,#0891b2,#38bdf8)" },
+    { key: "prompts", label: "Prompt Packs", number: "03", icon: "⚡", desc: "Ready-to-use AI prompts for every stage of your build.", accent: "#fbbf24", accentBg: "rgba(251,191,36,0.06)", accentBorder: "rgba(251,191,36,0.15)", gradient: "linear-gradient(135deg,#f59e0b,#fcd34d)" },
+    { key: "feasibility", label: "Feasibility", number: "04", icon: "📊", desc: "Score, strengths, risks, opportunities & competitor landscape.", accent: "#4ade80", accentBg: "rgba(74,222,128,0.06)", accentBorder: "rgba(74,222,128,0.15)", gradient: "linear-gradient(135deg,#16a34a,#4ade80)" },
+];
 
-export default function ThinkDashboard() {
+// ════════════════════════════════════════════════════════
+// MAIN DASHBOARD
+// ════════════════════════════════════════════════════════
+export default function ThinkDashboardInner() {
     const router = useRouter();
     const w = useWindowWidth();
     const isMobile = w > 0 && w < 768;
@@ -781,10 +688,10 @@ export default function ThinkDashboard() {
     const [projects, setProjects] = useState<any[]>([]);
     const [loadingProjects, setLoadingProjects] = useState(true);
     const [view, setView] = useState<"home" | "generate" | "project">("home");
-    const [mobileView, setMobileView] = useState<"home" | "projects">("home");
-    const [deletingId, setDeletingId] = useState<string | null>(null);
     const [limitData, setLimitData] = useState<{ canGenerate: boolean; remaining: number | null; plan: string; resetAt?: string }>({ canGenerate: true, remaining: 5, plan: "free" });
-    const [searchQuery, setSearchQuery] = useState("");
+    const [ideaInput, setIdeaInput] = useState("");
+    const [hoveredOutput, setHoveredOutput] = useState<string | null>(null);
+    const [inputFocused, setInputFocused] = useState(false);
 
     const fetchLimit = useCallback(async () => {
         try { const res = await fetch("/api/check-limit"); setLimitData(await res.json()); } catch { }
@@ -803,16 +710,6 @@ export default function ThinkDashboard() {
         setView("home"); setError(""); setTabErrors({}); setCurrentProjectId(null);
     };
 
-    const handleDeleteProject = async (projectId: string) => {
-        setDeletingId(projectId);
-        try {
-            await fetch(`/api/projects/${projectId}`, { method: "DELETE" });
-            setProjects(prev => prev.filter(p => p.id !== projectId));
-            if (currentProjectId === projectId) goHome();
-            window.dispatchEvent(new Event("forge:project-saved"));
-        } catch { } finally { setDeletingId(null); }
-    };
-
     const saveProject = async (data: any, submittedIdea: string) => {
         setSaving(true);
         try {
@@ -821,22 +718,22 @@ export default function ThinkDashboard() {
                 body: JSON.stringify({
                     title: data.blueprint?.productName ?? submittedIdea.slice(0, 60),
                     description: submittedIdea,
-                    input_prompt: submittedIdea,
-                    mode: "think",
-                    status: "complete",
+                    blueprint: data.blueprint ?? null,
+                    roadmap: data.roadmap ?? null,
+                    prompts: data.prompts ?? null,
+                    feasibility: data.feasibility ?? null,
                 }),
             });
             const json = await res.json();
             if (json.error) throw new Error(json.error);
-            setCurrentProjectId(json.data.id);
-            fetchProjects();
+            setCurrentProjectId(json.data.id); fetchProjects(); fetchLimit();
             window.dispatchEvent(new Event("forge:project-saved"));
-            fetchLimit();
-        } catch (e) { console.error("Save project error:", e); }
+        } catch (e) { console.error("Save error:", e); }
         finally { setSaving(false); }
     };
 
-    const handleGenerate = async (submittedIdea: string) => {
+    const handleGenerate = async () => {
+        if (!ideaInput.trim() || loading) return;
         const res = await fetch("/api/check-limit");
         const limit = await res.json();
         setLimitData(limit);
@@ -848,40 +745,27 @@ export default function ThinkDashboard() {
 
         try {
             const [blueprintRes, roadmapRes, promptsRes, feasibilityRes] = await Promise.all([
-                fetch("/api/generate-blueprint", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idea: submittedIdea }) }),
-                fetch("/api/generate-roadmap", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idea: submittedIdea }) }),
-                fetch("/api/generate-prompts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idea: submittedIdea }) }),
-                fetch("/api/feasibility-score", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idea: submittedIdea }) }),
+                fetch("/api/generate-blueprint", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idea: ideaInput }) }),
+                fetch("/api/generate-roadmap", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idea: ideaInput }) }),
+                fetch("/api/generate-prompts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idea: ideaInput }) }),
+                fetch("/api/feasibility-score", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idea: ideaInput }) }),
             ]);
-
-            const [blueprint, roadmap, prompts, feasibility] = await Promise.all([
-                blueprintRes.json(), roadmapRes.json(), promptsRes.json(), feasibilityRes.json(),
-            ]);
-
+            const [blueprint, roadmap, prompts, feasibility] = await Promise.all([blueprintRes.json(), roadmapRes.json(), promptsRes.json(), feasibilityRes.json()]);
             const newTabErrors: Partial<Record<Tab, string>> = {};
-            if (!blueprint.data) newTabErrors.blueprint = blueprint.error ?? "Failed to generate blueprint";
-            if (!roadmap.data) newTabErrors.roadmap = roadmap.error ?? "Failed to generate roadmap";
-            if (!prompts.data) newTabErrors.prompts = prompts.error ?? "Failed to generate prompts";
-            if (!feasibility.data) newTabErrors.feasibility = feasibility.error ?? "Failed to generate feasibility";
+            if (!blueprint.data) newTabErrors.blueprint = blueprint.error ?? "Failed";
+            if (!roadmap.data) newTabErrors.roadmap = roadmap.error ?? "Failed";
+            if (!prompts.data) newTabErrors.prompts = prompts.error ?? "Failed";
+            if (!feasibility.data) newTabErrors.feasibility = feasibility.error ?? "Failed";
             if (Object.keys(newTabErrors).length > 0) setTabErrors(newTabErrors);
-
-            const newResults = {
-                blueprint: blueprint.data ?? null,
-                roadmap: roadmap.data ?? null,
-                prompts: prompts.data ?? null,
-                feasibility: feasibility.data ?? null,
-            };
-
+            const newResults = { blueprint: blueprint.data ?? null, roadmap: roadmap.data ?? null, prompts: prompts.data ?? null, feasibility: feasibility.data ?? null };
             setStreamingResults({ blueprint: newResults.blueprint });
             setTimeout(() => setStreamingResults((p: any) => ({ ...p, roadmap: newResults.roadmap })), 500);
             setTimeout(() => setStreamingResults((p: any) => ({ ...p, prompts: newResults.prompts })), 1000);
             setTimeout(() => setStreamingResults((p: any) => ({ ...p, feasibility: newResults.feasibility })), 1500);
             setTimeout(() => { setResults(newResults); setIsStreaming(false); }, 2000);
-
-            if (newResults.blueprint) await saveProject(newResults, submittedIdea);
-        } catch (e: any) {
-            setError("Something went wrong. Please try again.");
-            setIsStreaming(false);
+            if (newResults.blueprint) await saveProject(newResults, ideaInput);
+        } catch {
+            setError("Something went wrong. Please try again."); setIsStreaming(false);
         } finally { setLoading(false); }
     };
 
@@ -900,298 +784,215 @@ export default function ThinkDashboard() {
         }
     };
 
-    const tabs: { key: Tab; label: string }[] = [
-        { key: "blueprint", label: "Blueprint" },
-        { key: "roadmap", label: "Roadmap" },
-        { key: "prompts", label: "Prompt Packs" },
-        { key: "feasibility", label: "Feasibility" },
+    const TAB_CONFIG = [
+        { key: "blueprint" as Tab, label: "Blueprint", color: "#6366f1" },
+        { key: "roadmap" as Tab, label: "Roadmap", color: "#8b5cf6" },
+        { key: "prompts" as Tab, label: "Prompt Packs", color: "#f59e0b" },
+        { key: "feasibility" as Tab, label: "Feasibility", color: "#22c55e" },
     ];
 
     const displayResults = isStreaming ? streamingResults : results;
     const showResults = displayResults && (view === "generate" || view === "project");
-    const filteredProjects = projects.filter(p =>
-        p.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.blueprint?.tagline?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const activeTabColor = TAB_CONFIG.find(t => t.key === activeTab)?.color ?? "#6366f1";
 
     return (
         <div className="app-shell" style={{ overflow: "hidden" }}>
-            {!isMobile && <Sidebar onLoadProject={handleLoadProject} />}
+            <Sidebar onLoadProject={handleLoadProject} />
 
             <div className="main-area">
-
-                {/* ── Topbar ── */}
-                <div className="main-topbar" style={{ padding: isMobile ? "0 16px" : "0 26px", gap: 12 }}>
-
-                    {/* Left: breadcrumb + title */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-                        {showResults && (
+                {/* Topbar */}
+                <div className="main-topbar" style={{ padding: isMobile ? "0 16px" : "0 26px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
+                        {showResults ? (
                             <>
-                                <button onClick={goHome} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-4)", fontSize: 13, fontFamily: "var(--font)", padding: 0, display: "flex", alignItems: "center", gap: 4 }}>
+                                <button onClick={goHome} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-4)", fontSize: 13, fontFamily: "var(--font)", padding: 0, transition: "color 0.15s", whiteSpace: "nowrap" }}
+                                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "var(--text)"}
+                                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "var(--text-4)"}>
                                     Home
                                 </button>
-                                <span style={{ color: "var(--text-4)", fontSize: 13 }}>›</span>
+                                <span style={{ color: "var(--border)", fontSize: 13 }}>›</span>
+                                <span className="main-topbar-title" style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{displayResults?.blueprint?.productName ?? "Generating..."}</span>
                             </>
+                        ) : (
+                            <span className="main-topbar-title">Project Generator</span>
                         )}
-
-                        {/* Think mode badge — only on home */}
-                        {!showResults && (
-                            <div style={{
-                                fontSize: 10, fontWeight: 700, letterSpacing: 3,
-                                textTransform: "uppercase", color: "rgba(99,102,241,0.8)",
-                                display: "flex", alignItems: "center", gap: 6,
-                            }}>
-                                <span style={{
-                                    width: 6, height: 6, borderRadius: "50%", background: "#6366f1",
-                                    display: "inline-block", boxShadow: "0 0 6px rgba(99,102,241,0.6)",
-                                }} />
-                                Think Mode
-                            </div>
-                        )}
-
-                        <span className="main-topbar-title" style={{ fontSize: isMobile ? 13.5 : 14 }}>
-                            {showResults ? (displayResults?.blueprint?.productName ?? "Generating...") : "Project Generator"}
-                        </span>
                     </div>
-
-                    {/* Centre: search bar */}
-                    {!isMobile && !showResults && (
-                        <div style={{ flex: 1, maxWidth: 320, position: "relative" }}>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                                style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-4)" }}>
-                                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-                            </svg>
-                            <input
-                                value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
-                                placeholder="Search projects..."
-                                style={{ width: "100%", paddingLeft: 32, paddingRight: 12, height: 34, border: "1px solid var(--border)", borderRadius: 20, fontSize: 13, color: "var(--text)", background: "var(--surface)", outline: "none", fontFamily: "var(--font)", transition: "border-color 0.12s" }}
-                                onFocus={e => (e.currentTarget as HTMLElement).style.borderColor = "var(--primary-border)"}
-                                onBlur={e => (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"}
-                            />
-                        </div>
-                    )}
-
-                    {/* Right: status indicators */}
-                    <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 6 : 10, flexShrink: 0, marginLeft: "auto" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                        {saving && <span style={{ fontSize: 12, color: "var(--text-4)" }}>Saving...</span>}
+                        {currentProjectId && !saving && !isStreaming && (
+                            <span style={{ fontSize: 12, color: "#22c55e", display: "flex", alignItems: "center", gap: 5 }}>
+                                <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#22c55e", display: "inline-block" }} /> Saved
+                            </span>
+                        )}
                         {limitData.plan === "free" && limitData.remaining !== null && !showResults && (
-                            <span style={{ fontSize: isMobile ? 11 : 12, color: "var(--text-4)", border: "1px solid var(--border)", padding: "3px 8px", borderRadius: 20, background: "var(--surface)", whiteSpace: "nowrap" as const }}>
+                            <span style={{ fontSize: 12, color: "var(--text-4)", border: "1px solid var(--border)", padding: "3px 8px", borderRadius: 20, background: "var(--surface)", whiteSpace: "nowrap" }}>
                                 {limitData.remaining}/5 left
                             </span>
                         )}
-                        {saving && <span style={{ fontSize: 12, color: "var(--text-4)" }}>Saving...</span>}
-                        {currentProjectId && !saving && !isStreaming && (
-                            <span style={{ fontSize: 12, color: "#22c55e" }}>✓ Saved</span>
-                        )}
-                        {!isMobile && (
-                            <button style={{ width: 34, height: 34, borderRadius: "50%", border: "1px solid var(--border)", background: "var(--surface)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "var(--text-3)" }}>
-                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                                </svg>
+                        {showResults && (
+                            <button onClick={goHome} style={{ fontSize: 11.5, padding: "5px 12px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-3)", cursor: "pointer", fontFamily: "var(--font)", fontWeight: 500, transition: "all 0.15s", whiteSpace: "nowrap" }}
+                                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--primary-border)"; (e.currentTarget as HTMLElement).style.color = "var(--text)"; }}
+                                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--text-3)"; }}>
+                                ← Back
                             </button>
-                        )}
-                        {isMobile && showResults && (
-                            <button onClick={goHome} style={{ fontSize: 11.5, padding: "5px 12px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--r)", color: "var(--text-3)", cursor: "pointer", fontFamily: "var(--font)", fontWeight: 500 }}>← Back</button>
                         )}
                     </div>
                 </div>
 
-                {/* ── Content ── */}
-                <div style={{ flex: 1, padding: isMobile ? "20px 16px" : "32px", overflowY: "auto", paddingBottom: isMobile ? "80px" : "32px" }}>
+                {/* Content */}
+                <div style={{ flex: 1, overflowY: "auto", paddingBottom: isMobile ? "80px" : "48px" }}>
 
-                    {/* Home view */}
+                    {/* ── HOME ── */}
                     {!showResults && (
-                        <div>
-                            {(!isMobile || mobileView === "home") && (
-                                <div style={{ maxWidth: 860, margin: "0 auto", marginBottom: 40 }}>
+                        <div style={{ maxWidth: 680, margin: "0 auto", padding: isMobile ? "24px 16px" : "48px 32px", display: "flex", flexDirection: "column", gap: 36 }}>
+                            <div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 12 }}>
+                                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#6366f1", display: "inline-block", boxShadow: "0 0 8px rgba(99,102,241,0.7)" }} />
+                                    <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 4, textTransform: "uppercase", color: "rgba(99,102,241,0.75)" }}>Think Mode</span>
+                                </div>
+                                <h1 style={{ fontSize: isMobile ? 24 : 34, fontWeight: 700, letterSpacing: "-1px", color: "var(--text)", marginBottom: 10, lineHeight: 1.15 }}>
+                                    What are we building today?
+                                </h1>
+                                <p style={{ fontSize: isMobile ? 14 : 15, color: "var(--text-3)", lineHeight: 1.7, margin: 0 }}>
+                                    Describe your idea — get a blueprint, roadmap, prompt pack & feasibility score in one shot.
+                                </p>
+                            </div>
 
-                                    {/* Page header */}
-                                    <div style={{ marginBottom: 32 }}>
-                                        <h1 style={{ fontSize: isMobile ? 22 : 28, fontWeight: 700, letterSpacing: "-0.8px", marginBottom: 6, color: "var(--text)" }}>
-                                            What are we building today?
-                                        </h1>
-                                        <p style={{ fontSize: isMobile ? 13.5 : 14, color: "var(--text-3)", lineHeight: 1.6 }}>
-                                            Turn your vague concept into a concrete, executable product roadmap in seconds.
-                                        </p>
+                            {!limitData.canGenerate ? (
+                                <div style={{ padding: "20px 24px", background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 14, fontSize: 14, color: "#d97706" }}>
+                                    ⚡ You've used all 5 free generations.{" "}
+                                    <Link href="/upgrade" style={{ color: "var(--primary)", fontWeight: 600, textDecoration: "none" }}>Upgrade to Pro →</Link>
+                                </div>
+                            ) : (
+                                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                                    <div style={{ borderRadius: 16, border: `1.5px solid ${inputFocused ? "rgba(99,102,241,0.5)" : "var(--border)"}`, background: "var(--bg)", transition: "border-color 0.15s, box-shadow 0.15s", boxShadow: inputFocused ? "0 0 0 3px rgba(99,102,241,0.08)" : "none", overflow: "hidden" }}>
+                                        <textarea
+                                            value={ideaInput}
+                                            onChange={e => setIdeaInput(e.target.value)}
+                                            onFocus={() => setInputFocused(true)}
+                                            onBlur={() => setInputFocused(false)}
+                                            onKeyDown={e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleGenerate(); }}
+                                            placeholder="e.g. An AI tool that helps solo founders validate product ideas using AI-powered user research simulations..."
+                                            rows={isMobile ? 4 : 5}
+                                            style={{ width: "100%", padding: "18px 18px 12px", background: "transparent", border: "none", outline: "none", color: "var(--text)", fontSize: isMobile ? 14 : 15, lineHeight: 1.7, fontFamily: "var(--font)", resize: "none", boxSizing: "border-box", display: "block" }}
+                                        />
+                                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 14px 12px", borderTop: "1px solid var(--border)", flexWrap: "wrap", gap: 8 }}>
+                                            <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                                                {["AI writing tool", "No-code builder", "B2B SaaS", "Health app"].map(ex => (
+                                                    <button key={ex} onClick={() => setIdeaInput(ex)}
+                                                        style={{ padding: "3px 10px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 20, fontSize: 11.5, color: "var(--text-4)", cursor: "pointer", fontFamily: "var(--font)", transition: "all 0.15s" }}
+                                                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(99,102,241,0.4)"; (e.currentTarget as HTMLElement).style.color = "#a5b4fc"; }}
+                                                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.color = "var(--text-4)"; }}>
+                                                        {ex}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            {!isMobile && <span style={{ fontSize: 11, color: "var(--text-4)", whiteSpace: "nowrap" }}>⌘ + ↵</span>}
+                                        </div>
                                     </div>
-
-                                    {/* Idea input or limit wall */}
-                                    {!limitData.canGenerate ? (
-                                        <LimitWall resetAt={limitData.resetAt} onUpgrade={() => router.push("/upgrade")} />
-                                    ) : (
-                                        <>
-                                            <IdeaInput onGenerate={handleGenerate} loading={loading} />
-                                            {error && <p style={{ marginTop: 12, fontSize: 13, color: "#dc2626", textAlign: "center" }}>{error}</p>}
-                                        </>
-                                    )}
-
-                                    {/* What you'll get — 4 output cards */}
-                                    {limitData.canGenerate && (
-                                        <div style={{ marginTop: 32 }}>
-                                            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-4)", marginBottom: 14 }}>
-                                                What you'll get
-                                            </div>
-                                            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "1fr 1fr 1fr 1fr", gap: 10 }}>
-                                                {[
-                                                    { key: "blueprint", label: "Blueprint", icon: "📐", desc: "Product vision, features & stack", color: "#6366f1" },
-                                                    { key: "roadmap", label: "Roadmap", icon: "🗺", desc: "Phase-by-phase execution plan", color: "var(--primary)" },
-                                                    { key: "prompts", label: "Prompt Packs", icon: "⚡", desc: "Ready-to-use AI prompts", color: "#f59e0b" },
-                                                    { key: "feasibility", label: "Feasibility", icon: "📊", desc: "Score, risks & opportunities", color: "#10b981" },
-                                                ].map(item => (
-                                                    <div key={item.key} style={{
-                                                        padding: "14px 16px", borderRadius: 12,
-                                                        border: "1px solid var(--border)", background: "var(--bg)",
-                                                        display: "flex", flexDirection: "column", gap: 8,
-                                                    }}>
-                                                        <div style={{ fontSize: 20 }}>{item.icon}</div>
-                                                        <div>
-                                                            <div style={{ fontSize: 12.5, fontWeight: 700, color: "var(--text)", marginBottom: 3 }}>{item.label}</div>
-                                                            <div style={{ fontSize: 11.5, color: "var(--text-4)", lineHeight: 1.5 }}>{item.desc}</div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
+                                    <button onClick={handleGenerate} disabled={!ideaInput.trim() || loading}
+                                        style={{ width: "100%", padding: "15px 24px", borderRadius: 13, border: "none", cursor: ideaInput.trim() && !loading ? "pointer" : "not-allowed", background: ideaInput.trim() && !loading ? "linear-gradient(135deg,#6366f1,#8b5cf6)" : "var(--surface)", color: ideaInput.trim() && !loading ? "#fff" : "var(--text-4)", fontSize: isMobile ? 14 : 15, fontWeight: 700, fontFamily: "var(--font)", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, boxShadow: ideaInput.trim() && !loading ? "0 6px 24px rgba(99,102,241,0.4)" : "none", letterSpacing: "-0.2px" }}>
+                                        {loading ? (<><span style={{ width: 15, height: 15, border: "2.5px solid rgba(255,255,255,0.25)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite", display: "inline-block", flexShrink: 0 }} />Generating all 4 outputs...</>) : "Generate All 4 Outputs ✦"}
+                                    </button>
+                                    {error && <p style={{ fontSize: 13, color: "#ef4444", margin: 0 }}>{error}</p>}
                                 </div>
                             )}
 
-                            {/* Projects list */}
-                            {(!isMobile || mobileView === "projects") && (
-                                <div style={{ maxWidth: 860, margin: "0 auto" }}>
-                                    {isMobile && (
-                                        <div style={{ position: "relative", marginBottom: 16 }}>
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                                                style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-4)" }}>
-                                                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-                                            </svg>
-                                            <input
-                                                value={searchQuery}
-                                                onChange={e => setSearchQuery(e.target.value)}
-                                                placeholder="Search projects..."
-                                                style={{ width: "100%", paddingLeft: 32, paddingRight: 12, height: 38, border: "1px solid var(--border)", borderRadius: 20, fontSize: 13, color: "var(--text)", background: "var(--surface)", outline: "none", fontFamily: "var(--font)" }}
-                                            />
+                            <div>
+                                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-4)", marginBottom: 14 }}>What You Get</div>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                                    {OUTPUTS.map(item => (
+                                        <div key={item.key} onMouseEnter={() => setHoveredOutput(item.key)} onMouseLeave={() => setHoveredOutput(null)}
+                                            style={{ padding: isMobile ? "14px 14px 12px" : "20px 20px 18px", borderRadius: 14, transition: "all 0.25s cubic-bezier(0.16,1,0.3,1)", background: hoveredOutput === item.key ? item.accentBg : "var(--bg)", border: `1px solid ${hoveredOutput === item.key ? item.accentBorder : "var(--border)"}`, transform: hoveredOutput === item.key ? "translateY(-2px)" : "translateY(0)", boxShadow: hoveredOutput === item.key ? `0 8px 28px ${item.accentBorder}` : "none", display: "flex", flexDirection: "column", gap: isMobile ? 8 : 12 }}>
+                                            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                                                <div style={{ width: isMobile ? 30 : 36, height: isMobile ? 30 : 36, borderRadius: 10, background: item.gradient, display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMobile ? 14 : 17 }}>{item.icon}</div>
+                                                {!isMobile && <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: "var(--text-4)" }}>{item.number}</span>}
+                                            </div>
+                                            <div>
+                                                <div style={{ fontSize: isMobile ? 12 : 13.5, fontWeight: 700, color: "var(--text)", marginBottom: 4, letterSpacing: "-0.2px" }}>{item.label}</div>
+                                                {!isMobile && <p style={{ fontSize: 12, color: "var(--text-4)", lineHeight: 1.6, margin: 0 }}>{item.desc}</p>}
+                                            </div>
                                         </div>
-                                    )}
+                                    ))}
+                                </div>
+                            </div>
 
-                                    {loadingProjects ? (
-                                        <div style={{ fontSize: 13, color: "var(--text-4)", textAlign: "center", padding: 32 }}>Loading projects...</div>
-                                    ) : filteredProjects.length > 0 ? (
-                                        <>
-                                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                                                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase" as const, letterSpacing: "0.07em", color: "var(--text-4)" }}>
-                                                    Recent Projects{searchQuery && ` · ${filteredProjects.length} results`}
+                            <div>
+                                <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-4)", marginBottom: 14 }}>Recent Projects</div>
+                                {loadingProjects ? (
+                                    <div style={{ textAlign: "center", padding: "28px 0", color: "var(--text-4)", fontSize: 13 }}>Loading...</div>
+                                ) : projects.length > 0 ? (
+                                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                        {projects.slice(0, 5).map(p => (
+                                            <div key={p.id} onClick={() => handleLoadProject(p)}
+                                                style={{ padding: "14px 18px", borderRadius: 10, border: "1px solid var(--border)", background: "var(--bg)", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", transition: "border-color 0.15s, background 0.15s" }}
+                                                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(99,102,241,0.3)"; (e.currentTarget as HTMLElement).style.background = "rgba(99,102,241,0.02)"; }}
+                                                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.background = "var(--bg)"; }}>
+                                                <div style={{ minWidth: 0, flex: 1 }}>
+                                                    <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.title}</div>
+                                                    <div style={{ fontSize: 11.5, color: "var(--text-4)" }}>{new Date(p.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</div>
                                                 </div>
-                                                {limitData.plan === "free" && (
-                                                    <Link href="/upgrade" style={{ fontSize: 12, color: "var(--primary)", textDecoration: "none", fontWeight: 500 }}>
-                                                        Upgrade for unlimited →
-                                                    </Link>
-                                                )}
+                                                <span style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 100, flexShrink: 0, marginLeft: 12, background: p.status === "complete" ? "rgba(34,197,94,0.08)" : "rgba(99,102,241,0.07)", color: p.status === "complete" ? "#22c55e" : "#a5b4fc", border: `1px solid ${p.status === "complete" ? "rgba(34,197,94,0.2)" : "rgba(99,102,241,0.2)"}` }}>
+                                                    {p.status === "complete" ? "Complete" : "In Progress"}
+                                                </span>
                                             </div>
-                                            <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
-                                                {filteredProjects.map(p => (
-                                                    <div key={p.id} style={{ opacity: deletingId === p.id ? 0.4 : 1, transition: "opacity 0.2s", pointerEvents: deletingId === p.id ? "none" : "auto" }}>
-                                                        <ProjectCard project={p} onClick={() => handleLoadProject(p)} onDelete={() => handleDeleteProject(p.id)} />
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </>
-                                    ) : projects.length === 0 ? (
-                                        <div style={{ textAlign: "center", padding: "40px 20px", color: "var(--text-4)", fontSize: 14 }}>
-                                            No projects yet — generate your first idea above!
-                                        </div>
-                                    ) : (
-                                        <div style={{ textAlign: "center", padding: "32px 20px", color: "var(--text-4)", fontSize: 14 }}>
-                                            No projects match "{searchQuery}"
-                                        </div>
-                                    )}
-                                </div>
-                            )}
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text-4)", fontSize: 14 }}>No projects yet — generate your first idea above.</div>
+                                )}
+                            </div>
                         </div>
                     )}
 
-                    {/* Results view */}
+                    {/* ── RESULTS ── */}
                     {showResults && (
-                        <div style={{ display: "flex", gap: 24, alignItems: "flex-start", maxWidth: 1200, margin: "0 auto" }}>
-
-                            {/* Main content */}
-                            <div style={{ flex: 1, minWidth: 0 }}>
-
-                                {/* Desktop tab bar */}
-                                {!isMobile && (
-                                    <div style={{ display: "flex", gap: 2, marginBottom: 24, borderBottom: "1px solid var(--border)" }}>
-                                        {tabs.map(t => (
-                                            <button key={t.key} onClick={() => setActiveTab(t.key)} style={{
-                                                padding: "8px 16px", border: "none", background: "transparent",
-                                                fontFamily: "var(--font)", fontSize: 13.5, fontWeight: 500,
-                                                color: activeTab === t.key ? "var(--primary)" : "var(--text-3)",
-                                                borderBottom: activeTab === t.key ? "2px solid var(--primary)" : "2px solid transparent",
-                                                cursor: "pointer", marginBottom: -1,
-                                                transition: "color 0.12s, opacity 0.2s",
-                                                opacity: isStreaming && !displayResults?.[t.key] ? 0.35 : 1,
-                                            }}>{t.label}</button>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {isMobile && (
-                                    <div style={{ marginBottom: 16 }}>
-                                        <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.3px" }}>
-                                            {displayResults?.blueprint?.productName ?? "Generating..."}
+                        <div style={{ padding: isMobile ? "16px 12px" : "28px 32px" }}>
+                            <div style={{ display: "flex", gap: 24, alignItems: "flex-start", maxWidth: 1200, margin: "0 auto" }}>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    {/* Tab bar — desktop only */}
+                                    {!isMobile && (
+                                        <div style={{ display: "flex", gap: 1, marginBottom: 24, background: "var(--surface)", borderRadius: 10, padding: 4, border: "1px solid var(--border)" }}>
+                                            {TAB_CONFIG.map(t => (
+                                                <button key={t.key} onClick={() => setActiveTab(t.key)}
+                                                    style={{ flex: 1, padding: "7px 14px", border: "none", borderRadius: 7, fontFamily: "var(--font)", fontSize: 13, fontWeight: 600, color: activeTab === t.key ? "#fff" : "var(--text-4)", background: activeTab === t.key ? t.color : "transparent", cursor: "pointer", transition: "all 0.18s", opacity: isStreaming && !displayResults?.[t.key] ? 0.35 : 1, boxShadow: activeTab === t.key ? `0 2px 8px ${t.color}40` : "none", whiteSpace: "nowrap" }}>
+                                                    {t.label}
+                                                </button>
+                                            ))}
                                         </div>
+                                    )}
+
+                                    {tabErrors[activeTab] && (<ErrorBanner message={tabErrors[activeTab]!} onDismiss={() => setTabErrors(p => ({ ...p, [activeTab]: undefined }))} />)}
+                                    {isStreaming && !displayResults?.[activeTab] && <GeneratingIndicator activeTab={activeTab} />}
+                                    {activeTab === "blueprint" && displayResults?.blueprint && <StreamingBlueprint data={displayResults.blueprint} isStreaming={isStreaming} isMobile={isMobile} />}
+                                    {activeTab === "roadmap" && displayResults?.roadmap && <StreamingRoadmap data={displayResults.roadmap} isStreaming={isStreaming} isMobile={isMobile} />}
+                                    {activeTab === "prompts" && displayResults?.prompts && <StreamingPrompts data={displayResults.prompts} isStreaming={isStreaming} isMobile={isMobile} />}
+                                    {activeTab === "feasibility" && displayResults?.feasibility && <StreamingFeasibility data={displayResults.feasibility} isStreaming={isStreaming} isMobile={isMobile} />}
+                                </div>
+
+                                {!isMobile && (
+                                    <div style={{ width: 260, flexShrink: 0, position: "sticky", top: 0 }}>
+                                        <InsightPanel data={displayResults} />
                                     </div>
-                                )}
-
-                                {tabErrors[activeTab] && (
-                                    <ErrorBanner message={tabErrors[activeTab]!} onDismiss={() => setTabErrors(p => ({ ...p, [activeTab]: undefined }))} />
-                                )}
-                                {isStreaming && !displayResults?.[activeTab] && <GeneratingIndicator activeTab={activeTab} />}
-
-                                {activeTab === "blueprint" && displayResults?.blueprint && <StreamingBlueprint data={displayResults.blueprint} isStreaming={isStreaming} />}
-                                {activeTab === "roadmap" && displayResults?.roadmap && <StreamingRoadmap data={displayResults.roadmap} isStreaming={isStreaming} />}
-                                {activeTab === "prompts" && displayResults?.prompts && <StreamingPrompts data={displayResults.prompts} isStreaming={isStreaming} />}
-                                {activeTab === "feasibility" && displayResults?.feasibility && <StreamingFeasibility data={displayResults.feasibility} isStreaming={isStreaming} isMobile={isMobile} />}
-
-                                {!isStreaming && activeTab === "blueprint" && !displayResults?.blueprint && tabErrors.blueprint && (
-                                    <div style={{ padding: 24, textAlign: "center", color: "var(--text-4)", fontSize: 13 }}>Blueprint generation failed. Try regenerating.</div>
-                                )}
-                                {!isStreaming && activeTab === "feasibility" && !displayResults?.feasibility && tabErrors.feasibility && (
-                                    <div style={{ padding: 24, textAlign: "center", color: "var(--text-4)", fontSize: 13 }}>Feasibility analysis failed. Try regenerating.</div>
                                 )}
                             </div>
-
-                            {/* Right insight panel — desktop only */}
-                            {!isMobile && (
-                                <div style={{ width: 280, flexShrink: 0, position: "sticky", top: 0 }}>
-                                    <InsightPanel data={displayResults} />
-                                </div>
-                            )}
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Mobile nav bar */}
+            {isMobile && showResults && (
+                <MobileResultNav activeTab={activeTab} setActiveTab={setActiveTab} displayResults={displayResults} isStreaming={isStreaming} />
+            )}
+
             {isMobile && (
-                <MobileNavBar
-                    currentView={mobileView}
-                    onHome={() => { setMobileView("home"); if (showResults) goHome(); }}
-                    onProjects={() => { setMobileView("projects"); if (showResults) goHome(); }}
-                    onSettings={() => router.push("/settings")}
-                    showResults={showResults}
-                    activeTab={activeTab}
-                    setActiveTab={setActiveTab}
-                    displayResults={displayResults}
-                    isStreaming={isStreaming}
-                />
+                <MobileSwitcher onLoadProject={handleLoadProject} />
             )}
 
             <style>{`
-                @keyframes think-pulse {
-                    0%, 100% { opacity: 1; transform: scale(1); }
-                    50% { opacity: 0.5; transform: scale(0.85); }
-                }
-                input::placeholder { color: var(--text-4); }
+                @keyframes spin { to { transform: rotate(360deg); } }
+                @keyframes think-pulse { 0%,100% { opacity:1; } 50% { opacity:0.35; } }
+                textarea::placeholder { color: var(--text-4); }
             `}</style>
         </div>
     );

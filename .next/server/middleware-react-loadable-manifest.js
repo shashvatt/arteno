@@ -1,0 +1,1 @@
+self.__REACT_LOADABLE_MANIFEST="{\"app\\\\dashboard\\\\page.tsx -> ./ThinkDashboardInner\":{\"id\":\"app\\\\dashboard\\\\page.tsx -> ./ThinkDashboardInner\",\"files\":[\"static/chunks/_app-pages-browser_app_dashboard_ThinkDashboardInner_tsx.js\"]}}"
