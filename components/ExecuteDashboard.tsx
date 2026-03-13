@@ -43,7 +43,6 @@ const AGENTS = [
     },
 ];
 
-// Moved outside component so useEffect can reference it stably
 const supabaseClient = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -54,16 +53,81 @@ async function getToken(): Promise<string | undefined> {
     return session?.access_token;
 }
 
+function useWindowWidth() {
+    const [width, setWidth] = useState(0);
+    useEffect(() => {
+        const update = () => setWidth(window.innerWidth);
+        update();
+        window.addEventListener("resize", update);
+        return () => window.removeEventListener("resize", update);
+    }, []);
+    return width;
+}
+
+// ════════════════════════════════════════════════════════
+// MOBILE SIDEBAR DRAWER
+// ════════════════════════════════════════════════════════
+function MobileSidebarDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
+    useEffect(() => {
+        if (open) document.body.style.overflow = "hidden";
+        else document.body.style.overflow = "";
+        return () => { document.body.style.overflow = ""; };
+    }, [open]);
+
+    return (
+        <>
+            {/* Backdrop */}
+            <div
+                onClick={onClose}
+                style={{
+                    position: "fixed", inset: 0, zIndex: 200,
+                    background: "rgba(0,0,0,0.6)",
+                    backdropFilter: "blur(2px)",
+                    opacity: open ? 1 : 0,
+                    pointerEvents: open ? "auto" : "none",
+                    transition: "opacity 0.25s ease",
+                }}
+            />
+            {/* Drawer panel */}
+            <div style={{
+                position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 201,
+                width: 280,
+                background: "var(--sidebar-bg, #0f0f0f)",
+                transform: open ? "translateX(0)" : "translateX(-100%)",
+                transition: "transform 0.28s cubic-bezier(0.16,1,0.3,1)",
+                display: "flex", flexDirection: "column",
+                overflowY: "auto",
+            }}>
+                {/*
+                  .drawer-sidebar-override overrides the globals.css rule:
+                  @media (max-width: 900px) { .sidebar-desktop { display: none !important; } }
+                  so the Sidebar renders fully inside the drawer.
+                */}
+                <div className="drawer-sidebar-override" style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+                    <Sidebar onLoadProject={() => { onClose(); }} />
+                </div>
+            </div>
+        </>
+    );
+}
+
+// ════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ════════════════════════════════════════════════════════
 export default function ExecuteDashboard() {
     const router = useRouter();
+    const w = useWindowWidth();
+    const isMobile = w > 0 && w < 900;
+
     const [hoveredAgent, setHoveredAgent] = useState<string | null>(null);
     const [buildIdea, setBuildIdea] = useState("");
     const [building, setBuilding] = useState(false);
     const [buildDone, setBuildDone] = useState(false);
     const [projects, setProjects] = useState<Project[]>([]);
     const [loadingProjects, setLoadingProjects] = useState(true);
+    const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+    const [inputFocused, setInputFocused] = useState(false);
 
-    // ── Fetch projects on mount ──────────────────────────
     useEffect(() => {
         const loadProjects = async () => {
             setLoadingProjects(true);
@@ -90,18 +154,49 @@ export default function ExecuteDashboard() {
 
     return (
         <div className="app-shell" style={{ overflow: "hidden" }}>
-            {/* Sidebar — matches Think mode layout */}
-            <Sidebar onLoadProject={() => { }} />
+            {/* Desktop sidebar */}
+            {!isMobile && <Sidebar onLoadProject={() => { }} />}
+
+            {/* Mobile sidebar drawer */}
+            {isMobile && (
+                <MobileSidebarDrawer
+                    open={mobileSidebarOpen}
+                    onClose={() => setMobileSidebarOpen(false)}
+                />
+            )}
 
             <div className="main-area">
                 {/* Topbar */}
-                <div className="main-topbar" style={{ padding: "0 26px" }}>
-                    <span className="main-topbar-title">Agent Suite</span>
+                <div className="main-topbar" style={{ padding: isMobile ? "0 16px" : "0 26px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1, minWidth: 0 }}>
+                        {isMobile && (
+                            <button
+                                onClick={() => setMobileSidebarOpen(true)}
+                                style={{
+                                    background: "none", border: "none", cursor: "pointer",
+                                    color: "var(--text-3)", padding: "4px 6px 4px 0",
+                                    display: "flex", alignItems: "center", flexShrink: 0,
+                                }}
+                            >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="3" y1="6" x2="21" y2="6" />
+                                    <line x1="3" y1="12" x2="21" y2="12" />
+                                    <line x1="3" y1="18" x2="21" y2="18" />
+                                </svg>
+                            </button>
+                        )}
+                        <span className="main-topbar-title">Agent Suite</span>
+                    </div>
                 </div>
 
                 {/* Content */}
-                <div style={{ flex: 1, padding: "32px", overflowY: "auto" }}>
-                    <div style={{ maxWidth: 860, margin: "0 auto", display: "flex", flexDirection: "column", gap: 32 }}>
+                <div style={{
+                    flex: 1,
+                    padding: isMobile ? "20px 16px" : "32px",
+                    overflowY: "auto",
+                    paddingBottom: isMobile ? "40px" : "48px",
+                }}>
+                    <div style={{ maxWidth: 860, margin: "0 auto", display: "flex", flexDirection: "column", gap: isMobile ? 24 : 32 }}>
 
                         {/* Header */}
                         <div>
@@ -116,10 +211,13 @@ export default function ExecuteDashboard() {
                                 }} />
                                 Execute Mode
                             </div>
-                            <h1 style={{ fontSize: 28, fontWeight: 700, letterSpacing: "-0.8px", color: "var(--text)", marginBottom: 6 }}>
+                            <h1 style={{
+                                fontSize: isMobile ? 22 : 28, fontWeight: 700,
+                                letterSpacing: "-0.8px", color: "var(--text)", marginBottom: 6,
+                            }}>
                                 Your agent team is ready.
                             </h1>
-                            <p style={{ fontSize: 14, color: "var(--text-3)", lineHeight: 1.6 }}>
+                            <p style={{ fontSize: isMobile ? 13 : 14, color: "var(--text-3)", lineHeight: 1.6, margin: 0 }}>
                                 Deploy specialists that write, sell, build, and ship — each focused on their domain.
                             </p>
                         </div>
@@ -132,7 +230,7 @@ export default function ExecuteDashboard() {
                             }}>
                                 Product Suite
                             </div>
-                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: isMobile ? 10 : 12 }}>
                                 {AGENTS.map(agent => (
                                     <div
                                         key={agent.key}
@@ -140,47 +238,50 @@ export default function ExecuteDashboard() {
                                         onMouseLeave={() => setHoveredAgent(null)}
                                         onClick={() => router.push(agent.href)}
                                         style={{
-                                            padding: "20px 20px 18px", borderRadius: 14, cursor: "pointer",
+                                            padding: isMobile ? "14px 14px 12px" : "20px 20px 18px",
+                                            borderRadius: 14, cursor: "pointer",
                                             transition: "all 0.25s cubic-bezier(0.16,1,0.3,1)",
                                             background: hoveredAgent === agent.key ? agent.accentBg : "var(--bg)",
                                             border: `1px solid ${hoveredAgent === agent.key ? agent.accentBorder : "var(--border)"}`,
                                             transform: hoveredAgent === agent.key ? "translateY(-2px)" : "translateY(0)",
                                             boxShadow: hoveredAgent === agent.key ? `0 8px 24px ${agent.accentBorder}` : "none",
-                                            display: "flex", flexDirection: "column", gap: 12,
+                                            display: "flex", flexDirection: "column", gap: isMobile ? 8 : 12,
                                         }}
                                     >
                                         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                                             <div style={{
-                                                width: 38, height: 38, borderRadius: 10,
-                                                background: agent.gradient, display: "flex",
-                                                alignItems: "center", justifyContent: "center",
-                                                fontSize: 18, boxShadow: `0 3px 10px ${agent.accentBorder}`,
+                                                width: isMobile ? 32 : 38, height: isMobile ? 32 : 38,
+                                                borderRadius: 10, background: agent.gradient,
+                                                display: "flex", alignItems: "center", justifyContent: "center",
+                                                fontSize: isMobile ? 15 : 18,
+                                                boxShadow: `0 3px 10px ${agent.accentBorder}`,
                                             }}>
                                                 {agent.icon}
                                             </div>
-                                            <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: "var(--text-4)" }}>
-                                                {agent.number}
-                                            </span>
+                                            {!isMobile && (
+                                                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, color: "var(--text-4)" }}>
+                                                    {agent.number}
+                                                </span>
+                                            )}
                                         </div>
                                         <div>
-                                            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", marginBottom: 5, letterSpacing: "-0.2px" }}>
+                                            <div style={{
+                                                fontSize: isMobile ? 12 : 14, fontWeight: 700,
+                                                color: "var(--text)", marginBottom: isMobile ? 0 : 5,
+                                                letterSpacing: "-0.2px",
+                                            }}>
                                                 {agent.label}
                                             </div>
-                                            <p style={{ fontSize: 12, color: "var(--text-4)", lineHeight: 1.6, margin: 0 }}>
-                                                {agent.desc}
-                                            </p>
+                                            {!isMobile && (
+                                                <p style={{ fontSize: 12, color: "var(--text-4)", lineHeight: 1.6, margin: 0 }}>
+                                                    {agent.desc}
+                                                </p>
+                                            )}
                                         </div>
-                                        <div style={{
-                                            fontSize: 12, color: agent.accent, fontWeight: 600,
-                                            display: "flex", alignItems: "center", gap: 4,
-                                            transition: "gap 0.2s",
-                                        }}>
+                                        <div style={{ fontSize: 11, color: agent.accent, fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
                                             Open
-                                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none"
-                                                style={{
-                                                    transform: hoveredAgent === agent.key ? "translateX(3px)" : "translateX(0)",
-                                                    transition: "transform 0.2s ease",
-                                                }}>
+                                            <svg width="11" height="11" viewBox="0 0 12 12" fill="none"
+                                                style={{ transform: hoveredAgent === agent.key ? "translateX(3px)" : "translateX(0)", transition: "transform 0.2s ease" }}>
                                                 <path d="M2 6H10M7 3L10 6L7 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                                             </svg>
                                         </div>
@@ -191,50 +292,46 @@ export default function ExecuteDashboard() {
 
                         {/* Build My Startup orchestrator */}
                         <div style={{
-                            padding: "28px 32px", borderRadius: 16,
-                            background: "var(--bg)", border: "1px solid var(--border)",
+                            padding: isMobile ? "20px 18px" : "28px 32px",
+                            borderRadius: 16, background: "var(--bg)", border: "1px solid var(--border)",
                             position: "relative", overflow: "hidden",
                         }}>
-                            {/* Gradient decoration */}
                             <div style={{
                                 position: "absolute", inset: 0,
                                 background: "linear-gradient(135deg, rgba(37,99,235,0.04) 0%, rgba(124,58,237,0.04) 100%)",
                                 pointerEvents: "none",
                             }} />
-
                             <div style={{ position: "relative", zIndex: 1 }}>
-                                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20 }}>
-                                    <div>
-                                        <div style={{
-                                            fontSize: 10, fontWeight: 700, letterSpacing: 3,
-                                            textTransform: "uppercase", color: "var(--text-4)", marginBottom: 6,
-                                        }}>
+                                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 18, gap: 12 }}>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                        <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase", color: "var(--text-4)", marginBottom: 6 }}>
                                             Orchestrator
                                         </div>
-                                        <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.4px", marginBottom: 4 }}>
+                                        <div style={{ fontSize: isMobile ? 16 : 18, fontWeight: 700, color: "var(--text)", letterSpacing: "-0.4px", marginBottom: 4 }}>
                                             Build My Startup
                                         </div>
-                                        <p style={{ fontSize: 12.5, color: "var(--text-3)", lineHeight: 1.6, margin: 0, maxWidth: 400 }}>
+                                        <p style={{ fontSize: isMobile ? 12 : 12.5, color: "var(--text-3)", lineHeight: 1.6, margin: 0 }}>
                                             All 4 agents run in parallel — get your complete startup operating system in one shot.
                                         </p>
                                     </div>
-                                    {/* Stacked agent avatars */}
-                                    <div style={{ display: "flex" }}>
-                                        {AGENTS.map((a, i) => (
-                                            <div key={a.key} style={{
-                                                width: 30, height: 30, borderRadius: "50%",
-                                                border: "2px solid var(--bg)", background: a.gradient,
-                                                display: "flex", alignItems: "center", justifyContent: "center",
-                                                fontSize: 13, marginLeft: i === 0 ? 0 : -8,
-                                                zIndex: AGENTS.length - i, position: "relative",
-                                            }}>
-                                                {a.icon}
-                                            </div>
-                                        ))}
-                                    </div>
+                                    {!isMobile && (
+                                        <div style={{ display: "flex", flexShrink: 0 }}>
+                                            {AGENTS.map((a, i) => (
+                                                <div key={a.key} style={{
+                                                    width: 30, height: 30, borderRadius: "50%",
+                                                    border: "2px solid var(--bg)", background: a.gradient,
+                                                    display: "flex", alignItems: "center", justifyContent: "center",
+                                                    fontSize: 13, marginLeft: i === 0 ? 0 : -8,
+                                                    zIndex: AGENTS.length - i, position: "relative",
+                                                }}>
+                                                    {a.icon}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
 
-                                <div style={{ display: "flex", gap: 10 }}>
+                                <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 10 }}>
                                     <input
                                         value={buildIdea}
                                         onChange={e => setBuildIdea(e.target.value)}
@@ -242,12 +339,12 @@ export default function ExecuteDashboard() {
                                         placeholder="Describe your startup idea..."
                                         style={{
                                             flex: 1, padding: "11px 16px", borderRadius: 10,
-                                            border: "1px solid var(--border)", background: "var(--surface)",
-                                            color: "var(--text)", fontSize: 13, outline: "none",
-                                            fontFamily: "var(--font)", transition: "border-color 0.15s",
+                                            border: `1px solid ${inputFocused ? "var(--primary-border)" : "var(--border)"}`,
+                                            background: "var(--surface)", color: "var(--text)", fontSize: 13,
+                                            outline: "none", fontFamily: "var(--font)", transition: "border-color 0.15s",
                                         }}
-                                        onFocus={e => (e.target.style.borderColor = "var(--primary-border)")}
-                                        onBlur={e => (e.target.style.borderColor = "var(--border)")}
+                                        onFocus={() => setInputFocused(true)}
+                                        onBlur={() => setInputFocused(false)}
                                     />
                                     <button
                                         onClick={handleBuildAll}
@@ -255,24 +352,17 @@ export default function ExecuteDashboard() {
                                         style={{
                                             padding: "11px 22px", borderRadius: 10, border: "none",
                                             cursor: buildIdea.trim() && !building ? "pointer" : "not-allowed",
-                                            background: buildIdea.trim() && !building
-                                                ? "linear-gradient(135deg, #1d4ed8, #7c3aed)"
-                                                : "var(--surface)",
+                                            background: buildIdea.trim() && !building ? "linear-gradient(135deg, #1d4ed8, #7c3aed)" : "var(--surface)",
                                             color: buildIdea.trim() && !building ? "#fff" : "var(--text-4)",
                                             fontSize: 13, fontWeight: 600, fontFamily: "var(--font)",
                                             transition: "all 0.2s", whiteSpace: "nowrap",
-                                            display: "flex", alignItems: "center", gap: 8,
+                                            display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                                             boxShadow: buildIdea.trim() && !building ? "0 4px 16px rgba(37,99,235,0.3)" : "none",
+                                            width: isMobile ? "100%" : "auto",
                                         }}
                                     >
                                         {building && (
-                                            <span style={{
-                                                width: 12, height: 12,
-                                                border: "2px solid rgba(255,255,255,0.3)",
-                                                borderTopColor: "#fff", borderRadius: "50%",
-                                                animation: "spin 0.7s linear infinite",
-                                                display: "inline-block",
-                                            }} />
+                                            <span style={{ width: 12, height: 12, border: "2px solid rgba(255,255,255,0.3)", borderTopColor: "#fff", borderRadius: "50%", animation: "spin 0.7s linear infinite", display: "inline-block" }} />
                                         )}
                                         {building ? "Building..." : buildDone ? "✓ Done" : "Run All Agents ✦"}
                                     </button>
@@ -288,43 +378,34 @@ export default function ExecuteDashboard() {
 
                         {/* Recent Projects */}
                         <div>
-                            <div style={{
-                                fontSize: 11, fontWeight: 700, textTransform: "uppercase",
-                                letterSpacing: "0.07em", color: "var(--text-4)", marginBottom: 14,
-                            }}>
+                            <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--text-4)", marginBottom: 14 }}>
                                 Recent Projects
                             </div>
-
                             {loadingProjects ? (
-                                <div style={{ textAlign: "center", padding: "32px 0", color: "var(--text-4)", fontSize: 13 }}>
-                                    Loading projects...
-                                </div>
+                                <div style={{ textAlign: "center", padding: "32px 0", color: "var(--text-4)", fontSize: 13 }}>Loading projects...</div>
                             ) : projects.length > 0 ? (
                                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                                     {projects.slice(0, 5).map(p => (
-                                        <div
-                                            key={p.id}
+                                        <div key={p.id}
                                             style={{
                                                 padding: "14px 18px", borderRadius: 12,
                                                 border: "1px solid var(--border)", background: "var(--bg)",
-                                                display: "flex", justifyContent: "space-between", alignItems: "center",
+                                                display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12,
                                                 cursor: "pointer", transition: "border-color 0.15s",
                                             }}
                                             onMouseEnter={e => (e.currentTarget.style.borderColor = "var(--primary-border)")}
                                             onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border)")}
                                         >
-                                            <div>
-                                                <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text)", marginBottom: 2 }}>
+                                            <div style={{ minWidth: 0, flex: 1 }}>
+                                                <div style={{ fontSize: 13.5, fontWeight: 600, color: "var(--text)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                                                     {p.title}
                                                 </div>
                                                 <div style={{ fontSize: 11.5, color: "var(--text-4)" }}>
-                                                    {new Date(p.created_at).toLocaleDateString("en-US", {
-                                                        month: "short", day: "numeric", year: "numeric",
-                                                    })}
+                                                    {new Date(p.created_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                                                 </div>
                                             </div>
                                             <span style={{
-                                                fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 100,
+                                                fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 100, flexShrink: 0,
                                                 background: p.status === "complete" ? "rgba(22,163,74,0.1)" : "rgba(20,33,61,0.06)",
                                                 color: p.status === "complete" ? "#16a34a" : "var(--primary)",
                                                 border: `1px solid ${p.status === "complete" ? "rgba(22,163,74,0.2)" : "var(--primary-border)"}`,

@@ -3,11 +3,11 @@
 import { useState, useEffect } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import dynamic from "next/dynamic";
-import ExecuteDashboard from "@/components/ExecuteDashboard";  // ← trailing space removed
+import ExecuteDashboard from "@/components/ExecuteDashboard";
 
 // Dynamically import existing dashboard as ThinkDashboardInner
 const ThinkDashboardInner = dynamic(
-  () => import("./ThinkDashboardInner"),
+  () => import("./ThinkDashboardInner").then(mod => mod.default),
   { ssr: false, loading: () => null }
 );
 
@@ -28,7 +28,7 @@ export default function DashboardPage() {
 
       if (!user) {
         window.location.href = "/sign-in";
-        return; // stop here — don't setLoading(false)
+        return;
       }
 
       const { data } = await supabase
@@ -39,11 +39,11 @@ export default function DashboardPage() {
 
       if (!data?.mode) {
         window.location.href = "/choose-mode";
-        return; // stop here — don't setLoading(false)
+        return;
       }
 
       setMode(data.mode as Mode);
-      setLoading(false); // only reached when we have a valid mode
+      setLoading(false);
     };
 
     fetchMode();

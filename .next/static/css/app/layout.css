@@ -1201,3 +1201,15 @@ textarea:focus-visible {
     height: 24px;
   }
 }
+/* ─────────────────────────────────────
+   MOBILE DRAWER SIDEBAR OVERRIDE
+   Forces sidebar visible inside drawer
+───────────────────────────────────── */
+.drawer-sidebar-override .sidebar-desktop {
+  display: flex !important;
+  position: static !important;
+  width: 100% !important;
+  height: 100% !important;
+  border-right: none !important;
+  animation: none !important;
+}

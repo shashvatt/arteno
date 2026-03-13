@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Sidebar from "@/components/Sidebar";
-import MobileSwitcher from "@/components/MobileSwitcher";
 import Link from "next/link";
 
 type Tab = "blueprint" | "roadmap" | "prompts" | "feasibility";
@@ -102,6 +101,79 @@ function ErrorBanner({ message, onDismiss }: { message: string; onDismiss: () =>
 }
 
 // ════════════════════════════════════════════════════════
+// MOBILE SIDEBAR DRAWER
+// ════════════════════════════════════════════════════════
+function MobileSidebarDrawer({ open, onClose, onLoadProject }: { open: boolean; onClose: () => void; onLoadProject: (p: any) => void }) {
+    useEffect(() => {
+        if (open) document.body.style.overflow = "hidden";
+        else document.body.style.overflow = "";
+        return () => { document.body.style.overflow = ""; };
+    }, [open]);
+
+    return (
+        <>
+            {/* Backdrop */}
+            <div
+                onClick={onClose}
+                style={{
+                    position: "fixed", inset: 0, zIndex: 200,
+                    background: "rgba(0,0,0,0.6)",
+                    backdropFilter: "blur(2px)",
+                    opacity: open ? 1 : 0,
+                    pointerEvents: open ? "auto" : "none",
+                    transition: "opacity 0.25s ease",
+                }}
+            />
+            {/* Drawer */}
+            <div style={{
+                position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 201,
+                width: 280,
+                background: "var(--sidebar-bg, #0f0f0f)",
+                borderRight: "1px solid rgba(255,255,255,0.08)",
+                transform: open ? "translateX(0)" : "translateX(-100%)",
+                transition: "transform 0.28s cubic-bezier(0.16,1,0.3,1)",
+                display: "flex", flexDirection: "column",
+                overflowY: "auto",
+            }}>
+                {/* Close button */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 16px 14px", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.72)", letterSpacing: "0.08em", textTransform: "uppercase" }}>Menu</span>
+                    <button onClick={onClose} style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "rgba(255,255,255,0.6)" }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                </div>
+
+                {/* Render the full Sidebar component inside the drawer — override desktop CSS */}
+                <div style={{ flex: 1, overflowY: "auto" }} className="mobile-drawer-sidebar">
+                    <Sidebar key={open ? "open" : "closed"} onLoadProject={(p) => { onLoadProject(p); onClose(); }} />
+                </div>
+            </div>
+        </>
+    );
+}
+
+// ════════════════════════════════════════════════════════
+// MOBILE RESULT BOTTOM NAV
+// ════════════════════════════════════════════════════════
+function MobileResultNav({ activeTab, setActiveTab, displayResults, isStreaming }: any) {
+    const tabs = [{ key: "blueprint", label: "Blueprint" }, { key: "roadmap", label: "Roadmap" }, { key: "prompts", label: "Prompts" }, { key: "feasibility", label: "Score" }];
+    return (
+        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 80, background: "var(--sidebar-bg)", borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", height: 56 }}>
+            {tabs.map(t => {
+                const isActive = activeTab === t.key;
+                return (
+                    <button key={t.key} onClick={() => setActiveTab(t.key)}
+                        style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "transparent", border: "none", cursor: "pointer", position: "relative", color: isActive ? "#fff" : "rgba(255,255,255,0.35)", opacity: isStreaming && !displayResults?.[t.key] ? 0.3 : 1 }}>
+                        <span style={{ fontSize: 10.5, fontWeight: isActive ? 700 : 400, letterSpacing: "0.02em" }}>{t.label}</span>
+                        {isActive && <div style={{ position: "absolute", bottom: 0, width: 24, height: 2, background: "#6366f1", borderRadius: "2px 2px 0 0" }} />}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
+// ════════════════════════════════════════════════════════
 // BLUEPRINT
 // ════════════════════════════════════════════════════════
 function StreamingBlueprint({ data, isStreaming, isMobile }: { data: any; isStreaming: boolean; isMobile?: boolean }) {
@@ -120,7 +192,6 @@ function StreamingBlueprint({ data, isStreaming, isMobile }: { data: any; isStre
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            {/* Hero header */}
             <FadeIn>
                 <div style={{ padding: isMobile ? "20px 18px 18px" : "32px 32px 28px", borderRadius: "14px 14px 0 0", background: "var(--bg)", border: "1px solid var(--border)", borderBottom: "none", position: "relative", overflow: "hidden" }}>
                     <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(90deg, #6366f1, #8b5cf6, #a78bfa, transparent)" }} />
@@ -137,7 +208,6 @@ function StreamingBlueprint({ data, isStreaming, isMobile }: { data: any; isStre
                                 {tagline}<Cursor visible={isStreaming && !taglineDone} />
                             </p>
                         </div>
-                        {/* Hide audience tags on mobile to prevent layout overflow */}
                         {!isMobile && data?.targetAudience?.length > 0 && (
                             <div style={{ display: "flex", flexWrap: "wrap", gap: 5, maxWidth: 200, justifyContent: "flex-end" }}>
                                 {data.targetAudience.slice(0, 3).map((a: any, i: number) => {
@@ -147,7 +217,6 @@ function StreamingBlueprint({ data, isStreaming, isMobile }: { data: any; isStre
                             </div>
                         )}
                     </div>
-                    {/* Show audience tags below title on mobile */}
                     {isMobile && data?.targetAudience?.length > 0 && (
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 12 }}>
                             {data.targetAudience.slice(0, 3).map((a: any, i: number) => {
@@ -159,7 +228,6 @@ function StreamingBlueprint({ data, isStreaming, isMobile }: { data: any; isStre
                 </div>
             </FadeIn>
 
-            {/* Problem + Value — stack on mobile */}
             <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 2 }}>
                 {(taglineDone || !isStreaming) && (
                     <FadeIn delay={80}>
@@ -183,7 +251,6 @@ function StreamingBlueprint({ data, isStreaming, isMobile }: { data: any; isStre
                 )}
             </div>
 
-            {/* Core Features */}
             {(coreDone || !isStreaming) && features.length > 0 && (
                 <FadeIn delay={180}>
                     <div style={{ padding: isMobile ? "16px 18px" : "24px 28px", background: "var(--bg)", border: "1px solid var(--border)", borderTop: "none" }}>
@@ -217,7 +284,6 @@ function StreamingBlueprint({ data, isStreaming, isMobile }: { data: any; isStre
                 </FadeIn>
             )}
 
-            {/* Tech Stack */}
             {(coreDone || !isStreaming) && techStack.length > 0 && (
                 <FadeIn delay={220}>
                     <div style={{ padding: isMobile ? "16px 18px" : "22px 28px", background: "var(--bg)", border: "1px solid var(--border)", borderTop: "none" }}>
@@ -233,7 +299,6 @@ function StreamingBlueprint({ data, isStreaming, isMobile }: { data: any; isStre
                 </FadeIn>
             )}
 
-            {/* Competitive Edge */}
             {(coreDone || !isStreaming) && data?.competitiveEdge && (
                 <FadeIn delay={260}>
                     <div style={{ padding: isMobile ? "16px 18px" : "22px 28px", background: "var(--bg)", border: "1px solid var(--border)", borderTop: "none", borderRadius: "0 0 14px 14px", position: "relative", overflow: "hidden" }}>
@@ -404,7 +469,6 @@ function StreamingPrompts({ data, isStreaming, isMobile }: { data: any; isStream
                                 <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", padding: "3px 9px", borderRadius: 5, background: "rgba(245,158,11,0.1)", color: "#f59e0b", border: "1px solid rgba(245,158,11,0.2)" }}>{pack.phase}</span>
                                 <span style={{ fontSize: 10.5, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-4)" }}>{pack.category}</span>
                             </div>
-
                             <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                                 {pack.prompts?.map((p: any, j: number) => {
                                     const toolStyle = getToolStyle(p.tool ?? "");
@@ -452,7 +516,6 @@ function StreamingFeasibility({ data, isStreaming, isMobile }: { data: any; isSt
                 <div style={{ padding: isMobile ? "20px 18px 18px" : "32px 32px 28px", background: "var(--bg)", border: "1px solid var(--border)", borderBottom: "none", borderRadius: "14px 14px 0 0", position: "relative", overflow: "hidden" }}>
                     <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: `linear-gradient(90deg, ${scoreColor}, ${scoreColor}88, transparent)` }} />
                     <div style={{ position: "absolute", top: -40, left: -40, width: 180, height: 180, borderRadius: "50%", background: scoreColor, opacity: 0.04, filter: "blur(40px)", pointerEvents: "none" }} />
-
                     <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 20 : 32, flexWrap: "wrap", position: "relative" }}>
                         <div style={{ position: "relative", width: isMobile ? 100 : 120, height: isMobile ? 100 : 120, flexShrink: 0 }}>
                             <svg width={isMobile ? 100 : 120} height={isMobile ? 100 : 120} viewBox="0 0 120 120" style={{ transform: "rotate(-90deg)" }}>
@@ -468,7 +531,6 @@ function StreamingFeasibility({ data, isStreaming, isMobile }: { data: any; isSt
                                 <span style={{ fontSize: 10, color: "var(--text-4)", fontWeight: 500 }}>/100</span>
                             </div>
                         </div>
-
                         <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: scoreColor, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
                                 <span style={{ width: 5, height: 5, borderRadius: "50%", background: scoreColor, display: "inline-block", boxShadow: `0 0 6px ${scoreColor}` }} />
@@ -638,27 +700,6 @@ function InsightPanel({ data }: { data: any }) {
 }
 
 // ════════════════════════════════════════════════════════
-// MOBILE RESULT NAV
-// ════════════════════════════════════════════════════════
-function MobileResultNav({ activeTab, setActiveTab, displayResults, isStreaming }: any) {
-    const tabs = [{ key: "blueprint", label: "Blueprint" }, { key: "roadmap", label: "Roadmap" }, { key: "prompts", label: "Prompts" }, { key: "feasibility", label: "Score" }];
-    return (
-        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 80, background: "var(--sidebar-bg)", borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", height: 56 }}>
-            {tabs.map(t => {
-                const isActive = activeTab === t.key;
-                return (
-                    <button key={t.key} onClick={() => setActiveTab(t.key)}
-                        style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", background: "transparent", border: "none", cursor: "pointer", position: "relative", color: isActive ? "#fff" : "rgba(255,255,255,0.35)", opacity: isStreaming && !displayResults?.[t.key] ? 0.3 : 1 }}>
-                        <span style={{ fontSize: 10.5, fontWeight: isActive ? 700 : 400, letterSpacing: "0.02em" }}>{t.label}</span>
-                        {isActive && <div style={{ position: "absolute", bottom: 0, width: 24, height: 2, background: "#6366f1", borderRadius: "2px 2px 0 0" }} />}
-                    </button>
-                );
-            })}
-        </div>
-    );
-}
-
-// ════════════════════════════════════════════════════════
 // OUTPUT CARDS CONFIG
 // ════════════════════════════════════════════════════════
 const OUTPUTS = [
@@ -687,11 +728,12 @@ export default function ThinkDashboardInner() {
     const [saving, setSaving] = useState(false);
     const [projects, setProjects] = useState<any[]>([]);
     const [loadingProjects, setLoadingProjects] = useState(true);
-    const [view, setView] = useState<"home" | "generate" | "project">("home");
+    const [currentView, setCurrentView] = useState<"home" | "generate" | "project">("home");
     const [limitData, setLimitData] = useState<{ canGenerate: boolean; remaining: number | null; plan: string; resetAt?: string }>({ canGenerate: true, remaining: 5, plan: "free" });
     const [ideaInput, setIdeaInput] = useState("");
     const [hoveredOutput, setHoveredOutput] = useState<string | null>(null);
     const [inputFocused, setInputFocused] = useState(false);
+    const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
     const fetchLimit = useCallback(async () => {
         try { const res = await fetch("/api/check-limit"); setLimitData(await res.json()); } catch { }
@@ -707,7 +749,7 @@ export default function ThinkDashboardInner() {
 
     const goHome = () => {
         setResults(null); setStreamingResults(null); setIsStreaming(false);
-        setView("home"); setError(""); setTabErrors({}); setCurrentProjectId(null);
+        setCurrentView("home"); setError(""); setTabErrors({}); setCurrentProjectId(null);
     };
 
     const saveProject = async (data: any, submittedIdea: string) => {
@@ -741,7 +783,7 @@ export default function ThinkDashboardInner() {
 
         setLoading(true); setIsStreaming(true); setError(""); setTabErrors({});
         setResults(null); setStreamingResults({}); setCurrentProjectId(null);
-        setView("generate"); setActiveTab("blueprint");
+        setCurrentView("generate"); setActiveTab("blueprint");
 
         try {
             const [blueprintRes, roadmapRes, promptsRes, feasibilityRes] = await Promise.all([
@@ -776,11 +818,11 @@ export default function ThinkDashboardInner() {
             const p = json.data ?? project;
             setResults({ blueprint: p.blueprint, roadmap: p.roadmap, prompts: p.prompts, feasibility: p.feasibility });
             setStreamingResults(null); setIsStreaming(false); setTabErrors({});
-            setCurrentProjectId(p.id); setActiveTab("blueprint"); setView("project");
+            setCurrentProjectId(p.id); setActiveTab("blueprint"); setCurrentView("project");
         } catch {
             setResults({ blueprint: project.blueprint, roadmap: project.roadmap, prompts: project.prompts, feasibility: project.feasibility });
             setStreamingResults(null); setIsStreaming(false); setTabErrors({});
-            setCurrentProjectId(project.id); setActiveTab("blueprint"); setView("project");
+            setCurrentProjectId(project.id); setActiveTab("blueprint"); setCurrentView("project");
         }
     };
 
@@ -792,17 +834,40 @@ export default function ThinkDashboardInner() {
     ];
 
     const displayResults = isStreaming ? streamingResults : results;
-    const showResults = displayResults && (view === "generate" || view === "project");
+    const showResults = displayResults && (currentView === "generate" || currentView === "project");
     const activeTabColor = TAB_CONFIG.find(t => t.key === activeTab)?.color ?? "#6366f1";
 
     return (
         <div className="app-shell" style={{ overflow: "hidden" }}>
-            <Sidebar onLoadProject={handleLoadProject} />
+            {/* Desktop sidebar */}
+            {!isMobile && <Sidebar onLoadProject={handleLoadProject} />}
+
+            {/* Mobile sidebar drawer */}
+            {isMobile && (
+                <MobileSidebarDrawer
+                    open={mobileSidebarOpen}
+                    onClose={() => setMobileSidebarOpen(false)}
+                    onLoadProject={handleLoadProject}
+                />
+            )}
 
             <div className="main-area">
                 {/* Topbar */}
                 <div className="main-topbar" style={{ padding: isMobile ? "0 16px" : "0 26px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
+                        {/* Hamburger — mobile only */}
+                        {isMobile && (
+                            <button
+                                onClick={() => setMobileSidebarOpen(true)}
+                                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-3)", padding: "4px 6px 4px 0", display: "flex", alignItems: "center", flexShrink: 0 }}
+                            >
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="3" y1="6" x2="21" y2="6"/>
+                                    <line x1="3" y1="12" x2="21" y2="12"/>
+                                    <line x1="3" y1="18" x2="21" y2="18"/>
+                                </svg>
+                            </button>
+                        )}
                         {showResults ? (
                             <>
                                 <button onClick={goHome} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-4)", fontSize: 13, fontFamily: "var(--font)", padding: 0, transition: "color 0.15s", whiteSpace: "nowrap" }}
@@ -950,7 +1015,6 @@ export default function ThinkDashboardInner() {
                         <div style={{ padding: isMobile ? "16px 12px" : "28px 32px" }}>
                             <div style={{ display: "flex", gap: 24, alignItems: "flex-start", maxWidth: 1200, margin: "0 auto" }}>
                                 <div style={{ flex: 1, minWidth: 0 }}>
-                                    {/* Tab bar — desktop only */}
                                     {!isMobile && (
                                         <div style={{ display: "flex", gap: 1, marginBottom: 24, background: "var(--surface)", borderRadius: 10, padding: 4, border: "1px solid var(--border)" }}>
                                             {TAB_CONFIG.map(t => (
@@ -981,18 +1045,56 @@ export default function ThinkDashboardInner() {
                 </div>
             </div>
 
+            {/* Mobile bottom tab bar (results view) */}
             {isMobile && showResults && (
                 <MobileResultNav activeTab={activeTab} setActiveTab={setActiveTab} displayResults={displayResults} isStreaming={isStreaming} />
-            )}
-
-            {isMobile && (
-                <MobileSwitcher onLoadProject={handleLoadProject} />
             )}
 
             <style>{`
                 @keyframes spin { to { transform: rotate(360deg); } }
                 @keyframes think-pulse { 0%,100% { opacity:1; } 50% { opacity:0.35; } }
                 textarea::placeholder { color: var(--text-4); }
+                .mobile-drawer-sidebar aside {
+                    display: flex !important;
+                    position: static !important;
+                    width: 100% !important;
+                    height: auto !important;
+                    min-height: 100% !important;
+                    border-right: none !important;
+                    flex-direction: column !important;
+                }
+                .mobile-drawer-sidebar .sidebar-body {
+                    flex: 1 !important;
+                    overflow-y: visible !important;
+                }
+                .mobile-drawer-sidebar .sidebar-item {
+                    color: rgba(255,255,255,0.65) !important;
+                }
+                .mobile-drawer-sidebar .sidebar-item:hover,
+                .mobile-drawer-sidebar .sidebar-item.active {
+                    color: #fff !important;
+                }
+                .mobile-drawer-sidebar button.sidebar-item span,
+                .mobile-drawer-sidebar a.sidebar-item,
+                .mobile-drawer-sidebar button.sidebar-item {
+                    color: rgba(255,255,255,0.65) !important;
+                }
+                .mobile-drawer-sidebar .sidebar-section-label {
+                    color: rgba(255,255,255,0.25) !important;
+                }
+                .mobile-drawer-sidebar .sidebar-user-name {
+                    color: rgba(255,255,255,0.5) !important;
+                }
+                .mobile-drawer-sidebar * {
+                    color: rgba(255,255,255,0.65) !important;
+                }
+                .mobile-drawer-sidebar svg {
+                    color: rgba(255,255,255,0.4) !important;
+                }
+                .mobile-drawer-sidebar .sidebar-item.active *,
+                .mobile-drawer-sidebar .sidebar-item.active {
+                    color: #fff !important;
+                }
             `}</style>
         </div>
     );

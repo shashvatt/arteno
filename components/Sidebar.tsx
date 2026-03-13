@@ -6,8 +6,14 @@ import { useEffect, useState } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 
 type Project = {
-  id: string; name: string; created_at: string;
-  blueprint: any; roadmap: any; prompts: any; feasibility: any;
+  id: string;
+  name?: string;
+  title?: string;
+  created_at: string;
+  blueprint: any;
+  roadmap: any;
+  prompts: any;
+  feasibility: any;
 };
 type Props = {
   onLoadProject?: (project: Project) => void;
@@ -87,6 +93,10 @@ export default function Sidebar({ onLoadProject, onDeleteProject }: Props) {
 
   const avatarLetter = userEmail ? userEmail[0].toUpperCase() : "?";
 
+  // Helper to get display name from either title or name field
+  const getProjectName = (project: Project) =>
+    project.title ?? project.name ?? "Untitled Project";
+
   return (
     <aside className="sidebar sidebar-desktop">
       <div className="sidebar-header" style={{ padding: "20px 16px 16px", borderBottom: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between", minHeight: 64 }}>
@@ -139,10 +149,12 @@ export default function Sidebar({ onLoadProject, onDeleteProject }: Props) {
                 ) : (
                   <button className="sidebar-item"
                     style={{ width: "100%", fontFamily: "var(--font)", opacity: deletingId === project.id ? 0.4 : 1, paddingRight: hoveredId === project.id ? 28 : undefined, position: "relative", cursor: deletingId === project.id ? "default" : "pointer" }}
-                    onClick={() => onLoadProject?.(project)} title={project.name} disabled={deletingId === project.id}>
+                    onClick={() => onLoadProject?.(project)}
+                    title={getProjectName(project)}
+                    disabled={deletingId === project.id}>
                     <IconList />
                     <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 140, fontSize: 13 }}>
-                      {deletingId === project.id ? "Deleting..." : project.name}
+                      {deletingId === project.id ? "Deleting..." : getProjectName(project)}
                     </span>
                     {hoveredId === project.id && deletingId !== project.id && (
                       <span onClick={(e) => { e.stopPropagation(); setConfirmDeleteId(project.id); }}
@@ -180,13 +192,13 @@ export default function Sidebar({ onLoadProject, onDeleteProject }: Props) {
               <div style={{ width: 26, height: 26, borderRadius: "50%", background: "var(--primary)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff", flexShrink: 0 }}>
                 {avatarLetter}
               </div>
-              <span className="sidebar-user-name" style={{ fontSize: 12.5, color: "var(--text-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+              <span className="sidebar-user-name" style={{ fontSize: 12.5, color: "rgba(255,255,255,0.6)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
                 {userEmail}
               </span>
               <button onClick={handleSignOut} title="Sign out"
-                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-4)", display: "flex", alignItems: "center", padding: 2, borderRadius: 4, flexShrink: 0 }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text)"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "var(--text-4)"; }}>
+                style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.4)", display: "flex", alignItems: "center", padding: 2, borderRadius: 4, flexShrink: 0 }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#fff"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.4)"; }}>
                 <IconLogout />
               </button>
             </div>

@@ -92,8 +92,21 @@ const plans = [
   },
 ];
 
+function useWindowWidth() {
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const update = () => setWidth(window.innerWidth);
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, []);
+  return width;
+}
+
 export default function UpgradePage() {
   const router = useRouter();
+  const w = useWindowWidth();
+  const isMobile = w > 0 && w < 768;
   const [userEmail, setUserEmail] = useState("");
   const [userName, setUserName] = useState("");
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
@@ -178,18 +191,28 @@ export default function UpgradePage() {
       <Sidebar />
       <div className="main-area">
         <div className="main-topbar">
-          <span className="main-topbar-title">Upgrade</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flex: 1 }}>
+            <button onClick={() => router.back()}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-4)", fontSize: 13, fontFamily: "var(--font)", padding: 0, display: "flex", alignItems: "center", gap: 5, transition: "color 0.15s" }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "var(--text)"}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "var(--text-4)"}>
+              ← Back
+            </button>
+            <span style={{ color: "var(--border)", fontSize: 13 }}>›</span>
+            <span className="main-topbar-title">Upgrade</span>
+          </div>
         </div>
 
-        <div style={{ flex: 1, overflowY: "auto", padding: "48px 32px" }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: isMobile ? "28px 16px 48px" : "48px 32px" }}>
           <div style={{ maxWidth: 900, margin: "0 auto" }}>
 
-            <div style={{ textAlign: "center", marginBottom: 40, animation: "fadeup 0.4s cubic-bezier(0.16,1,0.3,1) both" }}>
+            {/* Header */}
+            <div style={{ textAlign: "center", marginBottom: isMobile ? 28 : 40, animation: "fadeup 0.4s cubic-bezier(0.16,1,0.3,1) both" }}>
               <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11.5, fontWeight: 500, color: "var(--text-3)", border: "1px solid var(--border)", background: "var(--surface)", padding: "4px 12px", borderRadius: 20, marginBottom: 16 }}>
                 <IconBolt />Simple, transparent pricing
               </div>
-              <h1 style={{ fontSize: 32, fontWeight: 600, letterSpacing: "-0.8px", marginBottom: 10, color: "var(--text)" }}>Build more with Arteno</h1>
-              <p style={{ fontSize: 15, color: "var(--text-3)", lineHeight: 1.6 }}>Choose the plan that fits how you build.</p>
+              <h1 style={{ fontSize: isMobile ? 24 : 32, fontWeight: 600, letterSpacing: "-0.8px", marginBottom: 10, color: "var(--text)" }}>Build more with Arteno</h1>
+              <p style={{ fontSize: isMobile ? 13.5 : 15, color: "var(--text-3)", lineHeight: 1.6 }}>Choose the plan that fits how you build.</p>
             </div>
 
             {error && (
@@ -198,40 +221,64 @@ export default function UpgradePage() {
               </div>
             )}
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, animation: "fadeup 0.5s cubic-bezier(0.16,1,0.3,1) 0.08s both" }}>
+            {/* Pricing cards — single column on mobile, 3 cols on desktop */}
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)",
+              gap: isMobile ? 14 : 16,
+              animation: "fadeup 0.5s cubic-bezier(0.16,1,0.3,1) 0.08s both",
+            }}>
               {plans.map((plan) => (
                 <div key={plan.key}
-                  style={{ border: plan.highlighted ? "2px solid var(--text)" : "1px solid var(--border)", borderRadius: "var(--r-lg)", background: plan.highlighted ? "var(--text)" : "var(--bg)", padding: 24, display: "flex", flexDirection: "column", position: "relative", transition: "box-shadow 0.2s, transform 0.2s" }}
-                  onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 24px rgba(0,0,0,0.1)"; (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; }}
-                  onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.boxShadow = "none"; (e.currentTarget as HTMLElement).style.transform = "translateY(0)"; }}>
+                  style={{
+                    border: plan.highlighted ? "2px solid var(--text)" : "1px solid var(--border)",
+                    borderRadius: "var(--r-lg)",
+                    background: plan.highlighted ? "var(--text)" : "var(--bg)",
+                    padding: isMobile ? 20 : 24,
+                    display: "flex",
+                    flexDirection: "column",
+                    position: "relative",
+                    transition: "box-shadow 0.2s, transform 0.2s",
+                  }}
+                  onMouseEnter={(e) => { if (!isMobile) { (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 24px rgba(0,0,0,0.1)"; (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; } }}
+                  onMouseLeave={(e) => { if (!isMobile) { (e.currentTarget as HTMLElement).style.boxShadow = "none"; (e.currentTarget as HTMLElement).style.transform = "translateY(0)"; } }}>
+
                   {plan.badge && (
                     <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: "var(--text)", color: "#fff", fontSize: 11, fontWeight: 600, padding: "3px 12px", borderRadius: 20, whiteSpace: "nowrap", border: "2px solid var(--bg)" }}>{plan.badge}</div>
                   )}
-                  <div style={{ fontSize: 14, fontWeight: 600, color: plan.highlighted ? "#fff" : "var(--text)", marginBottom: 6 }}>{plan.name}</div>
-                  <div style={{ display: "flex", alignItems: "flex-end", gap: 3, marginBottom: 4 }}>
-                    {plan.price > 0 && <span style={{ fontSize: 14, fontWeight: 500, marginBottom: 5, color: plan.highlighted ? "rgba(255,255,255,0.7)" : "var(--text-3)" }}>₹</span>}
-                    <span style={{ fontSize: 36, fontWeight: 600, letterSpacing: "-1.5px", lineHeight: 1, color: plan.highlighted ? "#fff" : "var(--text)" }}>
-                      {plan.price === 0 ? "Free" : plan.price.toLocaleString("en-IN")}
-                    </span>
-                    {plan.price > 0 && <span style={{ fontSize: 13, marginBottom: 4, color: plan.highlighted ? "rgba(255,255,255,0.6)" : "var(--text-4)" }}>/mo</span>}
-                  </div>
-                  <p style={{ fontSize: 12.5, color: plan.highlighted ? "rgba(255,255,255,0.65)" : "var(--text-3)", lineHeight: 1.6, marginBottom: 20, minHeight: 40 }}>{plan.description}</p>
 
+                  {/* Plan name + price */}
+                  <div style={{ display: "flex", alignItems: isMobile ? "center" : "flex-start", justifyContent: isMobile ? "space-between" : "flex-start", flexDirection: isMobile ? "row" : "column", marginBottom: isMobile ? 10 : 0, gap: isMobile ? 0 : 4 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: plan.highlighted ? "#fff" : "var(--text)", marginBottom: isMobile ? 0 : 6 }}>{plan.name}</div>
+                    <div style={{ display: "flex", alignItems: "flex-end", gap: 3 }}>
+                      {plan.price > 0 && <span style={{ fontSize: isMobile ? 12 : 14, fontWeight: 500, marginBottom: isMobile ? 2 : 5, color: plan.highlighted ? "rgba(255,255,255,0.7)" : "var(--text-3)" }}>₹</span>}
+                      <span style={{ fontSize: isMobile ? 28 : 36, fontWeight: 600, letterSpacing: "-1.5px", lineHeight: 1, color: plan.highlighted ? "#fff" : "var(--text)" }}>
+                        {plan.price === 0 ? "Free" : plan.price.toLocaleString("en-IN")}
+                      </span>
+                      {plan.price > 0 && <span style={{ fontSize: 13, marginBottom: 4, color: plan.highlighted ? "rgba(255,255,255,0.6)" : "var(--text-4)" }}>/mo</span>}
+                    </div>
+                  </div>
+
+                  <p style={{ fontSize: 12.5, color: plan.highlighted ? "rgba(255,255,255,0.65)" : "var(--text-3)", lineHeight: 1.6, marginBottom: 16, minHeight: isMobile ? "auto" : 40 }}>{plan.description}</p>
+
+                  {/* CTA button */}
                   {plan.key === "free" ? (
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "9px 16px", borderRadius: "var(--r)", fontSize: 13.5, fontWeight: 500, marginBottom: 24, background: "var(--surface-2)", color: "var(--text-3)", border: "1px solid var(--border)" }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "9px 16px", borderRadius: "var(--r)", fontSize: 13.5, fontWeight: 500, marginBottom: 20, background: "var(--surface-2)", color: "var(--text-3)", border: "1px solid var(--border)" }}>
                       Current plan
                     </div>
                   ) : (
                     <button onClick={() => handlePayment(plan.key as "pro" | "team")} disabled={loadingPlan !== null}
-                      style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "9px 16px", borderRadius: "var(--r)", fontFamily: "var(--font)", fontSize: 13.5, fontWeight: 500, marginBottom: 24, border: "none", cursor: loadingPlan !== null ? "not-allowed" : "pointer", background: plan.highlighted ? "#fff" : "var(--text)", color: plan.highlighted ? "var(--text)" : "#fff", opacity: loadingPlan !== null && loadingPlan !== plan.key ? 0.5 : 1, transition: "opacity 0.12s, transform 0.12s" }}>
+                      style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: "9px 16px", borderRadius: "var(--r)", fontFamily: "var(--font)", fontSize: 13.5, fontWeight: 500, marginBottom: 20, border: "none", cursor: loadingPlan !== null ? "not-allowed" : "pointer", background: plan.highlighted ? "#fff" : "var(--text)", color: plan.highlighted ? "var(--text)" : "#fff", opacity: loadingPlan !== null && loadingPlan !== plan.key ? 0.5 : 1, transition: "opacity 0.12s, transform 0.12s" }}>
                       {loadingPlan === plan.key ? (
                         <><div style={{ width: 13, height: 13, border: `2px solid ${plan.highlighted ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.3)"}`, borderTopColor: plan.highlighted ? "var(--text)" : "#fff", borderRadius: "50%", animation: "spin 0.65s linear infinite" }} />Processing...</>
                       ) : plan.cta}
                     </button>
                   )}
 
-                  <div style={{ height: 1, background: plan.highlighted ? "rgba(255,255,255,0.15)" : "var(--border)", marginBottom: 20 }} />
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <div style={{ height: 1, background: plan.highlighted ? "rgba(255,255,255,0.15)" : "var(--border)", marginBottom: 16 }} />
+
+                  {/* Features */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 9 : 10 }}>
                     {plan.features.map((f) => (
                       <div key={f.text} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
                         <span style={{ flexShrink: 0, marginTop: 1, color: f.included ? (plan.highlighted ? "#fff" : "#16a34a") : (plan.highlighted ? "rgba(255,255,255,0.25)" : "var(--text-4)") }}>
@@ -247,9 +294,10 @@ export default function UpgradePage() {
               ))}
             </div>
 
-            <div style={{ marginTop: 48, padding: 24, border: "1px solid var(--border)", borderRadius: "var(--r-lg)", background: "var(--surface)", animation: "fadeup 0.5s cubic-bezier(0.16,1,0.3,1) 0.15s both" }}>
+            {/* FAQ */}
+            <div style={{ marginTop: isMobile ? 32 : 48, padding: isMobile ? 18 : 24, border: "1px solid var(--border)", borderRadius: "var(--r-lg)", background: "var(--surface)", animation: "fadeup 0.5s cubic-bezier(0.16,1,0.3,1) 0.15s both" }}>
               <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16, color: "var(--text)" }}>Frequently asked questions</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 18 : 20 }}>
                 {[
                   { q: "What counts as a generation?", a: "Each time you submit an idea and Forge AI generates the full blueprint, roadmap, prompt packs, and feasibility score — that counts as one generation." },
                   { q: "Can I cancel anytime?", a: "Yes. You can cancel at any time and keep access until the end of your billing period." },
@@ -263,9 +311,18 @@ export default function UpgradePage() {
                 ))}
               </div>
             </div>
+
           </div>
         </div>
       </div>
+
+      <style>{`
+        @keyframes fadeup {
+          from { opacity: 0; transform: translateY(10px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }
