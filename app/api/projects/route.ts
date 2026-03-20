@@ -8,7 +8,16 @@ const adminSupabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-async function getUserId(): Promise<string | null> {
+async function getUserId(req: NextRequest): Promise<string | null> {
+  // Try Bearer token first (client-side fetch)
+  const authHeader = req.headers.get("Authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    const token = authHeader.slice(7);
+    const { data: { user } } = await adminSupabase.auth.getUser(token);
+    if (user) return user.id;
+  }
+
+  // Fall back to cookie-based session (SSR)
   const cookieStore = cookies();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -28,9 +37,9 @@ async function getUserId(): Promise<string | null> {
   return user?.id ?? null;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const userId = await getUserId();
+    const userId = await getUserId(req);
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { data, error } = await adminSupabase
@@ -49,12 +58,11 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
-    const userId = await getUserId();
+    const userId = await getUserId(req);
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json();
 
-    // Accept both "title" and "name" from the request body for compatibility
     const title = body.title ?? body.name ?? "Untitled Project";
     const { description, blueprint, roadmap, prompts, feasibility } = body;
 

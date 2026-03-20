@@ -76,6 +76,53 @@ async function getUserId(req: NextRequest): Promise<string | null> {
   return user?.id ?? null;
 }
 
+async function checkAndIncrementLimit(userId: string): Promise<{ allowed: boolean; remaining: number; resetAt?: string }> {
+  const FREE_LIMIT = 2;
+  const RESET_HOURS = 24;
+  const supabase = getSupabase();
+
+  const { data: user, error } = await supabase
+    .from("users")
+    .select("plan, generations_count, generations_reset_at, plan_expires_at")
+    .eq("id", userId)
+    .single();
+
+  if (error || !user) {
+    await supabase.from("users").upsert({
+      id: userId, plan: "free", generations_count: 1,
+      generations_reset_at: new Date().toISOString(),
+    });
+    return { allowed: true, remaining: FREE_LIMIT - 1 };
+  }
+
+  const isPaid = user.plan === "pro" || user.plan === "team";
+  const planExpired = user.plan_expires_at && new Date(user.plan_expires_at) < new Date();
+  if (isPaid && !planExpired) {
+    await supabase.rpc("increment_generations", { user_id: userId });
+    return { allowed: true, remaining: Infinity };
+  }
+
+  const resetAt = new Date(user.generations_reset_at);
+  const hoursSinceReset = (Date.now() - resetAt.getTime()) / (1000 * 60 * 60);
+
+  if (hoursSinceReset >= RESET_HOURS) {
+    await supabase.from("users").update({
+      generations_count: 1,
+      generations_reset_at: new Date().toISOString(),
+    }).eq("id", userId);
+    return { allowed: true, remaining: FREE_LIMIT - 1 };
+  }
+
+  const count = user.generations_count ?? 0;
+  if (count >= FREE_LIMIT) {
+    const resetTime = new Date(resetAt.getTime() + RESET_HOURS * 60 * 60 * 1000);
+    return { allowed: false, remaining: 0, resetAt: resetTime.toISOString() };
+  }
+
+  await supabase.rpc("increment_generations", { user_id: userId });
+  return { allowed: true, remaining: FREE_LIMIT - (count + 1) };
+}
+
 async function runAgent(model: any, systemPrompt: string, idea: string) {
   const result = await model.generateContent(
     `${systemPrompt}\n\nSTARTUP IDEA: ${idea}\n\nRespond with valid JSON only.`
@@ -88,24 +135,28 @@ export async function POST(req: NextRequest) {
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-
-  // ✅ Accept both "idea" and "prompt" — handles old + new page versions
   const idea = body.idea || body.prompt;
   const projectId = body.projectId ?? null;
 
   if (!idea) return NextResponse.json({ error: "Idea is required" }, { status: 400 });
 
+  // ── Generation limit check ──
+  const limit = await checkAndIncrementLimit(userId);
+  if (!limit.allowed) {
+    return NextResponse.json({
+      error: "Generation limit reached",
+      limitReached: true,
+      remaining: 0,
+      resetAt: limit.resetAt,
+    }, { status: 429 });
+  }
+
   try {
     const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash",
-      generationConfig: {
-        temperature: 0.7,
-        maxOutputTokens: 8192,
-        responseMimeType: "application/json",
-      },
+      generationConfig: { temperature: 0.7, maxOutputTokens: 8192, responseMimeType: "application/json" },
     });
 
-    // ✅ Run all 4 agents in parallel
     const [founder, sales, marketing, orchestrator] = await Promise.all([
       runAgent(model, FOUNDER_PROMPT, idea),
       runAgent(model, SALES_PROMPT, idea),
@@ -119,18 +170,14 @@ export async function POST(req: NextRequest) {
     const { data: saved, error } = await supabase
       .from("agent_outputs")
       .insert({
-        user_id: userId,
-        agent_type: "build-startup",
-        input_prompt: idea,
-        output_data: data,
-        project_id: projectId,
-        status: "done",
+        user_id: userId, agent_type: "build-startup",
+        input_prompt: idea, output_data: data,
+        project_id: projectId, status: "done",
       })
-      .select()
-      .single();
+      .select().single();
 
     if (error) console.error("Supabase save error:", error);
-    return NextResponse.json({ data, outputId: saved?.id });
+    return NextResponse.json({ data, outputId: saved?.id, remaining: limit.remaining });
   } catch (e: any) {
     console.error("Build startup agent error:", e);
     return NextResponse.json({ error: e.message }, { status: 500 });
@@ -143,12 +190,9 @@ export async function GET(req: NextRequest) {
 
   const supabase = getSupabase();
   const { data, error } = await supabase
-    .from("agent_outputs")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("agent_type", "build-startup")
-    .order("created_at", { ascending: false })
-    .limit(20);
+    .from("agent_outputs").select("*")
+    .eq("user_id", userId).eq("agent_type", "build-startup")
+    .order("created_at", { ascending: false }).limit(20);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ data });

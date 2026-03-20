@@ -515,29 +515,12 @@ body {
   transform: translateY(-1px);
 }
 
-.stagger>*:nth-child(1) {
-  animation-delay: 0.04s;
-}
-
-.stagger>*:nth-child(2) {
-  animation-delay: 0.08s;
-}
-
-.stagger>*:nth-child(3) {
-  animation-delay: 0.12s;
-}
-
-.stagger>*:nth-child(4) {
-  animation-delay: 0.16s;
-}
-
-.stagger>*:nth-child(5) {
-  animation-delay: 0.20s;
-}
-
-.stagger>*:nth-child(6) {
-  animation-delay: 0.24s;
-}
+.stagger>*:nth-child(1) { animation-delay: 0.04s; }
+.stagger>*:nth-child(2) { animation-delay: 0.08s; }
+.stagger>*:nth-child(3) { animation-delay: 0.12s; }
+.stagger>*:nth-child(4) { animation-delay: 0.16s; }
+.stagger>*:nth-child(5) { animation-delay: 0.20s; }
+.stagger>*:nth-child(6) { animation-delay: 0.24s; }
 
 /* ─────────────────────────────────────
    TABS
@@ -986,6 +969,22 @@ textarea:focus-visible {
     display: none !important;
   }
 
+  /* New Sidebar component — fully hide on mobile, no residual space */
+  .sb-desktop {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    overflow: hidden !important;
+    position: absolute !important;
+    pointer-events: none !important;
+  }
+
+  /* ── Hide old three-dot menu button —
+     new Sidebar.tsx has its own hamburger ── */
+  .mobile-menu-btn {
+    display: none !important;
+  }
+
   .bottom-tabbar {
     display: block;
   }
@@ -1010,25 +1009,6 @@ textarea:focus-visible {
     text-decoration: none;
   }
 
-  .mobile-menu-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 34px;
-    height: 34px;
-    border: none;
-    background: rgba(255, 255, 255, 0.08);
-    border-radius: var(--r);
-    cursor: pointer;
-    color: rgba(255, 255, 255, 0.7);
-    transition: background 0.12s, color 0.12s;
-  }
-
-  .mobile-menu-btn:hover {
-    background: rgba(255, 255, 255, 0.15);
-    color: #fff;
-  }
-
   .sidebar-close-btn {
     display: flex;
   }
@@ -1040,6 +1020,8 @@ textarea:focus-visible {
     overflow: auto;
   }
 
+
+
   .main-area {
     min-height: calc(100vh - 52px);
     overflow: visible;
@@ -1047,7 +1029,7 @@ textarea:focus-visible {
   }
 
   .main-topbar {
-    padding: 0 16px;
+    padding: 0 16px 0 48px;
     height: 48px;
   }
 
@@ -1117,8 +1099,19 @@ textarea:focus-visible {
     padding: 5px 10px !important;
   }
 
+  /* Hide Execute Mode / mode badge pills in topbar */
   .main-topbar>div:last-child>span[style*="border-radius: 20px"] {
     display: none !important;
+  }
+
+  /* Topbar overflow guard */
+  .main-topbar {
+    overflow: hidden;
+  }
+
+  .main-topbar>* {
+    flex-shrink: 1;
+    min-width: 0;
   }
 
   div[style*="borderBottom: 1px solid var(--border)"][style*="display: flex"][style*="gap: 2px"] {
@@ -1191,6 +1184,7 @@ textarea:focus-visible {
     height: 24px;
   }
 }
+
 /* ─────────────────────────────────────
    MOBILE DRAWER SIDEBAR OVERRIDE
    Forces sidebar visible inside drawer

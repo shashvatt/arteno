@@ -2,50 +2,124 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "@supabase/supabase-js";
 import { getSystemPrompt } from "@/lib/agentPrompts";
+import { getStartupContext, saveStartupContext, buildContextBlock } from "@/lib/startupContext";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 async function getUserId(req: NextRequest): Promise<string | null> {
   try {
     const token = req.headers.get("Authorization")?.replace("Bearer ", "");
     if (!token) return null;
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
-    const { data: { user } } = await supabase.auth.getUser(token);
+    const { data: { user } } = await getSupabase().auth.getUser(token);
     return user?.id ?? null;
   } catch { return null; }
 }
 
+async function checkAndIncrementLimit(userId: string): Promise<{ allowed: boolean; remaining: number; resetAt?: string }> {
+  const FREE_LIMIT = 2;
+  const RESET_HOURS = 24;
+  const supabase = getSupabase();
+
+  const { data: user, error } = await supabase
+    .from("users")
+    .select("plan, generations_count, generations_reset_at, plan_expires_at")
+    .eq("id", userId)
+    .single();
+
+  if (error || !user) {
+    await supabase.from("users").upsert({
+      id: userId, plan: "free", generations_count: 1,
+      generations_reset_at: new Date().toISOString(),
+    });
+    return { allowed: true, remaining: FREE_LIMIT - 1 };
+  }
+
+  const isPaid = user.plan === "pro" || user.plan === "team";
+  const planExpired = user.plan_expires_at && new Date(user.plan_expires_at) < new Date();
+  if (isPaid && !planExpired) {
+    await supabase.rpc("increment_generations", { user_id: userId });
+    return { allowed: true, remaining: Infinity };
+  }
+
+  const resetAt = new Date(user.generations_reset_at);
+  const hoursSinceReset = (Date.now() - resetAt.getTime()) / (1000 * 60 * 60);
+
+  if (hoursSinceReset >= RESET_HOURS) {
+    await supabase.from("users").update({
+      generations_count: 1,
+      generations_reset_at: new Date().toISOString(),
+    }).eq("id", userId);
+    return { allowed: true, remaining: FREE_LIMIT - 1 };
+  }
+
+  const count = user.generations_count ?? 0;
+  if (count >= FREE_LIMIT) {
+    const resetTime = new Date(resetAt.getTime() + RESET_HOURS * 60 * 60 * 1000);
+    return { allowed: false, remaining: 0, resetAt: resetTime.toISOString() };
+  }
+
+  await supabase.rpc("increment_generations", { user_id: userId });
+  return { allowed: true, remaining: FREE_LIMIT - (count + 1) };
+}
+
 export async function POST(req: NextRequest) {
+  const userId = await getUserId(req);
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
   const { idea, projectId } = await req.json();
   if (!idea) return NextResponse.json({ error: "Idea is required" }, { status: 400 });
 
+  // ── Generation limit check ──
+  const limit = await checkAndIncrementLimit(userId);
+  if (!limit.allowed) {
+    return NextResponse.json({
+      error: "Generation limit reached",
+      limitReached: true,
+      remaining: 0,
+      resetAt: limit.resetAt,
+    }, { status: 429 });
+  }
+
   try {
+    const ctx = await getStartupContext(userId);
+    const contextBlock = buildContextBlock(ctx, "founder");
+
     const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash",
       generationConfig: { temperature: 0.7, maxOutputTokens: 8192, responseMimeType: "application/json" },
     });
 
-    const prompt = `${getSystemPrompt("founder")}\n\nSTARTUP IDEA: ${idea}\n\nGenerate a complete startup blueprint. Respond with valid JSON only.`;
+    const prompt = `${contextBlock}${getSystemPrompt("founder")}\n\nSTARTUP IDEA: ${idea}\n\nGenerate a complete startup blueprint. Respond with valid JSON only.`;
+
     const result = await model.generateContent(prompt);
     const data = JSON.parse(result.response.text());
 
-    const userId = await getUserId(req);
-    if (userId) {
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-      );
-      await supabase.from("agent_outputs").insert({
-        user_id: userId, agent_type: "founder",
-        input_prompt: idea, output_data: data,
-        project_id: projectId ?? null, status: "done",
-      });
-    }
+    const supabase = getSupabase();
+    await supabase.from("agent_outputs").insert({
+      user_id: userId, agent_type: "founder",
+      input_prompt: idea, output_data: data,
+      project_id: projectId ?? null, status: "done",
+    });
 
-    return NextResponse.json({ data });
+    await saveStartupContext(userId, {
+      company_name:     data.companyName,
+      tagline:          data.tagline,
+      stage:            data.fundingStrategy?.stage,
+      icp:              data.targetAudience?.icp,
+      usp:              data.solution?.unfairAdvantage,
+      tam:              data.marketAnalysis?.tam,
+      problem:          data.problemStatement?.problem,
+      founder_snapshot: data,
+    });
+
+    return NextResponse.json({ data, remaining: limit.remaining });
   } catch (e: any) {
     console.error("Founder agent error:", e);
     return NextResponse.json({ error: e.message }, { status: 500 });
@@ -56,11 +130,7 @@ export async function GET(req: NextRequest) {
   const userId = await getUserId(req);
   if (!userId) return NextResponse.json({ data: [] });
 
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-
+  const supabase = getSupabase();
   const { data, error } = await supabase
     .from("agent_outputs").select("*")
     .eq("user_id", userId).eq("agent_type", "founder")

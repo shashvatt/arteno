@@ -8,7 +8,16 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-async function getUser() {
+async function getUser(req: NextRequest) {
+  // Try Bearer token first (client-side fetch)
+  const authHeader = req.headers.get("Authorization");
+  if (authHeader?.startsWith("Bearer ")) {
+    const token = authHeader.slice(7);
+    const { data: { user } } = await supabase.auth.getUser(token);
+    if (user) return user;
+  }
+
+  // Fall back to cookie-based session (SSR)
   const cookieStore = cookies();
   const client = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -33,7 +42,7 @@ export async function GET(
   context: { params: { id: string } }
 ) {
   try {
-    const user = await getUser();
+    const user = await getUser(request);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { data, error } = await supabase
@@ -58,7 +67,7 @@ export async function DELETE(
   context: { params: { id: string } }
 ) {
   try {
-    const user = await getUser();
+    const user = await getUser(request);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { error } = await supabase

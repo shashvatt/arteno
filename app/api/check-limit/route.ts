@@ -1,9 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-const FREE_LIMIT = 5;
+const THINK_LIMIT = 5;
+const EXECUTE_LIMIT = 2;
 const RESET_HOURS = 24;
 
 async function getUserId(): Promise<string | null> {
@@ -26,10 +27,14 @@ async function getUserId(): Promise<string | null> {
   return user?.id ?? null;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const userId = await getUserId();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    // mode param: "think" (default) or "execute"
+    const mode = req.nextUrl.searchParams.get("mode") ?? "think";
+    const FREE_LIMIT = mode === "execute" ? EXECUTE_LIMIT : THINK_LIMIT;
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -38,7 +43,7 @@ export async function GET() {
 
     const { data: user, error } = await supabase
       .from("users")
-      .select("plan, generations_count, generations_reset_at, plan_expires_at")
+      .select("plan, generations_count, execute_generations_count, generations_reset_at, plan_expires_at")
       .eq("id", userId)
       .single();
 
@@ -47,6 +52,7 @@ export async function GET() {
         id: userId,
         plan: "free",
         generations_count: 0,
+        execute_generations_count: 0,
         generations_reset_at: new Date().toISOString(),
       });
       return NextResponse.json({ canGenerate: true, remaining: FREE_LIMIT, plan: "free" });
@@ -65,12 +71,18 @@ export async function GET() {
     if (hoursSinceReset >= RESET_HOURS) {
       await supabase.from("users").update({
         generations_count: 0,
+        execute_generations_count: 0,
         generations_reset_at: new Date().toISOString(),
       }).eq("id", userId);
       return NextResponse.json({ canGenerate: true, remaining: FREE_LIMIT, plan: "free" });
     }
 
-    const remaining = Math.max(0, FREE_LIMIT - (user.generations_count ?? 0));
+    // Use the right counter based on mode
+    const count = mode === "execute"
+      ? (user.execute_generations_count ?? 0)
+      : (user.generations_count ?? 0);
+
+    const remaining = Math.max(0, FREE_LIMIT - count);
     const resetTime = new Date(resetAt.getTime() + RESET_HOURS * 60 * 60 * 1000);
 
     return NextResponse.json({
@@ -81,21 +93,30 @@ export async function GET() {
     });
   } catch (err) {
     console.error("Limit check error:", err);
+    const mode = req.nextUrl.searchParams.get("mode") ?? "think";
+    const FREE_LIMIT = mode === "execute" ? EXECUTE_LIMIT : THINK_LIMIT;
     return NextResponse.json({ canGenerate: true, remaining: FREE_LIMIT, plan: "free" });
   }
 }
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   try {
     const userId = await getUserId();
     if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const mode = req.nextUrl.searchParams.get("mode") ?? "think";
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
 
-    await supabase.rpc("increment_generations", { user_id: userId });
+    if (mode === "execute") {
+      await supabase.rpc("increment_execute_generations", { user_id: userId });
+    } else {
+      await supabase.rpc("increment_generations", { user_id: userId });
+    }
+
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Increment error:", err);

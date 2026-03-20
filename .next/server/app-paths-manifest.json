@@ -1,8 +1,8 @@
 {
   "/page": "app/page.js",
+  "/sign-in/[[...sign-in]]/page": "app/sign-in/[[...sign-in]]/page.js",
   "/dashboard/page": "app/dashboard/page.js",
+  "/choose-mode/page": "app/choose-mode/page.js",
   "/api/projects/route": "app/api/projects/route.js",
-  "/api/check-limit/route": "app/api/check-limit/route.js",
-  "/api/projects/[id]/route": "app/api/projects/[id]/route.js",
-  "/upgrade/page": "app/upgrade/page.js"
+  "/settings/page": "app/settings/page.js"
 }
